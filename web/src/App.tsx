@@ -3,6 +3,7 @@ import { useScene } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import Map from "./Map.tsx"
 import Segments from "./Segment.tsx"
+import FloorTabs from "./FloorTabs.tsx"
 import type { Selection } from "./geom.ts"
 
 export default function App() {
@@ -21,26 +22,29 @@ export default function App() {
   return (
     <div className="app">
       {!connected && <div className="offline">서버와 끊김 — 재접속 중</div>}
-      <Map
-        scene={scene}
-        values={values}
-        floorId={current}
-        selection={selection}
-        onSelect={setSelection}
-        panTo={null}
-      >
-        {(b, zoomedIn) => (
-          <Segments
-            scene={scene}
-            values={values}
-            floorId={current}
-            bounds={b}
-            zoomedIn={zoomedIn}
-            selection={selection}
-            onSelect={setSelection}
-          />
-        )}
-      </Map>
+      <div className="body">
+        <FloorTabs scene={scene} values={values} current={current} onChange={setFloorId} />
+        <Map
+          scene={scene}
+          values={values}
+          floorId={current}
+          selection={selection}
+          onSelect={setSelection}
+          panTo={null}
+        >
+          {(b, zoomedIn) => (
+            <Segments
+              scene={scene}
+              values={values}
+              floorId={current}
+              bounds={b}
+              zoomedIn={zoomedIn}
+              selection={selection}
+              onSelect={setSelection}
+            />
+          )}
+        </Map>
+      </div>
     </div>
   )
 }
