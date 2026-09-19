@@ -2,7 +2,12 @@
 html, body, #root { height: 100%; margin: 0; }
 body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1115; color: #e6e8eb; }
 
-.map { position: relative; width: 100%; height: 100%; }
+/* height: 100% 를 주면 안 된다 — 부모(.body)에 확정 높이가 없어 퍼센트가 풀리고,
+   그러면 안쪽 svg 가 viewBox 종횡비(44:29)로 제 높이를 정해버려 그리드 트랙보다
+   커진다. 페이지에 세로 스크롤바가 생기는 원인이 이것이다. 그리드 아이템은
+   기본이 stretch 라 아무것도 안 주면 트랙을 정확히 채운다. min-*: 0 은 콘텐츠
+   기준 최소크기 때문에 줄어들지 못하는 것을 막는다. */
+.map { position: relative; min-width: 0; min-height: 0; }
 .map svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; background: #0f1115; }
 .map svg:active { cursor: grabbing; }
 
@@ -114,7 +119,11 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .floor-tab[data-state="unknown"] .floor-badge { color: #6b7280; }
 .floor-tab[data-state="stalled"] { border-color: #d24b4b; }
 
-.body { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 0; }
+/* height: 100% 를 주면 안 된다 — .app 의 1fr 트랙이 아니라 그리드 컨테이너
+   전체 높이로 풀려서, 상단 이상 막대(44px) 위에 100vh 가 얹히고 페이지에
+   세로 스크롤바가 생긴다. 1fr 이 이미 크기를 정하므로 min-height: 0 만 있으면
+   된다 (중첩 그리드가 콘텐츠 기준 auto 최소높이로 부풀지 않게). */
+.body { display: grid; grid-template-columns: auto 1fr; min-height: 0; }
 
 /* ── 이상 칩 ──────────────────────────────────────── */
 .alert-bar {

@@ -97,8 +97,16 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
                 }}
               />
             ))}
+            {/* 구간 끝점에 두면 거기 있는 장비 박스에 가린다 — 장비가 구간보다
+                나중에 렌더되기 때문이다. 적체 규모는 사고 판단의 핵심 숫자라
+                가려지면 안 되므로, 장비가 없는 구간 한가운데 선 위에 띄운다.
+                구간 라벨(-0.8)보다 위(-2.2)에 두어 둘이 겹치지 않게 한다. */}
             {wip > dots && (
-              <text className="overflow" x={seg.to.x} y={toSvgY(seg.to.y, bounds) - 1}>
+              <text
+                className="overflow"
+                x={(seg.from.x + seg.to.x) / 2}
+                y={toSvgY((seg.from.y + seg.to.y) / 2, bounds) - 2.2}
+              >
                 +{wip - dots}
               </text>
             )}

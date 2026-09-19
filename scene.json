@@ -44,7 +44,7 @@
     { "id": "conv-5", "label": "포장 이송", "section": "packing",
       "from": { "floor": "2F", "x": 19.5, "y": 12 },
       "to": { "floor": "2F", "x": 28, "y": 12 },
-      "via": [[23, 12], [23, 16]],
+      "via": [[22, 12], [22, 15], [28, 15]],
       "capacity": 12, "counterMax": 32767 }
   ],
   "cameras": [
