@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useScene } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import Map from "./Map.tsx"
+import Segments from "./Segment.tsx"
 import type { Selection } from "./geom.ts"
 
 export default function App() {
@@ -27,7 +28,19 @@ export default function App() {
         selection={selection}
         onSelect={setSelection}
         panTo={null}
-      />
+      >
+        {(b, zoomedIn) => (
+          <Segments
+            scene={scene}
+            values={values}
+            floorId={current}
+            bounds={b}
+            zoomedIn={zoomedIn}
+            selection={selection}
+            onSelect={setSelection}
+          />
+        )}
+      </Map>
     </div>
   )
 }

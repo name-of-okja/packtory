@@ -35,3 +35,58 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   background: #4a2020; border: 1px solid #7a3030; padding: 6px 12px; border-radius: 6px; z-index: 10;
 }
+
+/* ── 구간 ─────────────────────────────────────────── */
+.segment { cursor: pointer; }
+/* 얇은 선을 클릭하기 어려우므로 투명한 굵은 히트 영역을 겹쳐 둔다 */
+.rail-hit { stroke: transparent; stroke-width: 1.6; fill: none; }
+.rail { stroke-width: 0.45; fill: none; stroke-linecap: round; }
+.item { fill: #cfd6e0; }
+.overflow { fill: #e6e8eb; font-size: 1px; text-anchor: middle; }
+.segment-label { fill: #8b94a3; font-size: 0.85px; text-anchor: middle; pointer-events: none; }
+
+@keyframes flow { to { offset-distance: 100%; } }
+.item { animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
+
+/* 가동 */
+.segment[data-state="running"] .rail { stroke: #3d7a4a; }
+.segment[data-state="running"] .item { fill: #7fd694; }
+
+/* 정지 — 색만으로 구분하지 않는다. 점선과 깜빡임이 같이 붙는다. */
+.segment[data-state="stalled"] .rail { stroke: #d24b4b; stroke-dasharray: 1 0.6; animation: blink 1s steps(2) infinite; }
+.segment[data-state="stalled"] .item { fill: #ff8a8a; animation-play-state: paused; }
+@keyframes blink { 50% { opacity: 0.35; } }
+
+/* 대기 — 물건이 안 들어와서 안 도는 것은 정상이다. 여기서 빨강을 쓰지 않는 것이 이 제품의 값어치다. */
+.segment[data-state="idle"] .rail { stroke: #4a515c; }
+
+/* 불명 — 빗금 */
+.segment[data-state="unknown"] .rail { stroke: #6b7280; stroke-dasharray: 0.4 0.4; }
+
+/* ── 리프트 ───────────────────────────────────────── */
+.lift { cursor: pointer; }
+.lift circle { fill: #2a3240; stroke: #5b6675; stroke-width: 0.15; }
+.lift-arrow { fill: #cfd6e0; font-size: 1.2px; text-anchor: middle; pointer-events: none; }
+.lift-label { fill: #8b94a3; font-size: 0.85px; text-anchor: middle; pointer-events: none; }
+.lift[data-state="stalled"] circle { stroke: #d24b4b; stroke-width: 0.3; animation: blink 1s steps(2) infinite; }
+.lift[data-state="running"] circle { stroke: #3d7a4a; }
+.lift[data-state="unknown"] circle { stroke-dasharray: 0.4 0.4; }
+
+.segment.selected .rail, .lift.selected circle { stroke: #6aa9ff; }
+
+/* 움직임을 줄이라고 한 사용자에게는 애니메이션을 끈다.
+   상태는 색·점선·점 개수가 이미 다 전달하므로 정보가 사라지지 않는다.
+   주의: 여기서 `animation: none` 을 쓰면 안 된다 — .item 의 위치는 오직
+   @keyframes flow 의 offset-distance 로만 정해지는데, 애니메이션 자체를
+   지우면 그 값이 캐스케이드에서 완전히 빠져 offset-distance 의 초기값인
+   0%(경로 시작점)로 되돌아간다. 그러면 인덱스와 무관하게 모든 점이 구간
+   시작점 한 점에 겹쳐버려 "몇 개가 밀려 있는지"라는 정보 자체가 사라진다.
+   animation-play-state: paused 는 같은 정지 상태에서도 각 점의
+   animation-delay 로 정해지는 자기 위치(= 대기열 상의 제 위치)에서 그대로
+   얼어붙으므로, 정지 중인 구간의 .item 이 쓰는 것과 동일한 메커니즘으로
+   정보 손실 없이 멈춘다. */
+@media (prefers-reduced-motion: reduce) {
+  .item, .segment[data-state="stalled"] .rail, .lift[data-state="stalled"] circle {
+    animation-play-state: paused !important;
+  }
+}

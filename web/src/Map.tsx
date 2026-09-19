@@ -131,6 +131,11 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        // Task 7 이 구간·리프트라는 새 클릭 대상을 children 으로 추가한다. 이들도
+        // 팬 드래그 뒤의 합성 click 에 그대로 노출되므로(위 moved 설명 참조),
+        // 자식마다 moved 가드를 반복하는 대신 capture 단계에서 한 번에 막는다 —
+        // 이후 추가되는 자식도 별도 수정 없이 자동으로 보호된다.
+        onClickCapture={(e) => { if (moved.current) e.stopPropagation() }}
       >
         {sections.map((s) => {
           const [x, y, w, h] = s.rect
