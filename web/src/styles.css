@@ -30,7 +30,7 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 }
 .map-controls button:hover { background: #222833; }
 
-.app { display: grid; grid-template-rows: 1fr; height: 100%; }
+.app { display: grid; grid-template-rows: auto 1fr; height: 100%; position: relative; }
 .offline {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   background: #4a2020; border: 1px solid #7a3030; padding: 6px 12px; border-radius: 6px; z-index: 10;
@@ -115,3 +115,17 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .floor-tab[data-state="stalled"] { border-color: #d24b4b; }
 
 .body { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 0; }
+
+/* ── 이상 칩 ──────────────────────────────────────── */
+.alert-bar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 12px; background: #12161d; border-bottom: 1px solid #222833; min-height: 44px;
+}
+.alert-bar.ok { color: #7fd694; }
+.chip {
+  padding: 6px 12px; border: 1px solid #d24b4b; border-radius: 999px;
+  background: #3a1d1d; color: #ffb4b4; cursor: pointer; font: inherit;
+  animation: blink 1.6s steps(2) infinite;
+}
+.chip:hover { background: #4a2424; }
+@media (prefers-reduced-motion: reduce) { .chip { animation: none; } }
