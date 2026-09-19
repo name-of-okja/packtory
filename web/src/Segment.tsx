@@ -67,8 +67,12 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
         const dots = state === "unknown" ? 0 : Math.min(wip, cap)
         const dur = pathLength(seg) / VISUAL_SPEED
         // 점 간격을 capacity 로 고정한다. n 으로 나누면 점이 늘 때마다
-        // 기존 점들의 delay 가 바뀌어 화면 전체가 튄다.
-        const gap = dur / (seg.capacity ?? 20)
+        // 기존 점들의 delay 가 바뀌어 화면 전체가 튄다. MAX_DOTS 로 끊긴
+        // 실제 그려지는 개수(cap) 기준이어야 한다 — capacity 원본으로 나누면
+        // capacity > MAX_DOTS 인 씬에서 점이 경로의 일부(cap/capacity)만
+        // 차지해 "꽉 찬" 구간에 틈이 생긴다. capacity <= MAX_DOTS 이면
+        // cap === capacity 라 출력은 동일하다.
+        const gap = dur / cap
         const sel = selection?.kind === "segment" && selection.id === seg.id
 
         return (

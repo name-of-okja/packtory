@@ -39,6 +39,10 @@ cd web && npm run build
 cd ../hub && npm run serve             # http://localhost:8080
 ```
 
+`npm run serve` 는 `web/dist` 를 그대로 서빙할 뿐 신선도를 확인하지 않는다 —
+`web/` 을 고쳤으면 반드시 `npm run build` 를 먼저 다시 돌려야 바뀐 내용이
+반영된다.
+
 환경 변수: `PORT`, `SCENE`, `GO2RTC_BASE`, `WEB_DIR`.
 
 ## 테스트
@@ -47,7 +51,7 @@ cd ../hub && npm run serve             # http://localhost:8080
 cd hub && npm test
 ```
 
-테스트는 허브에만 있다 (`node --test`, 34개). 웹은 배선이라 자동 테스트를
+테스트는 허브에만 있다 (`node --test`, 37개). 웹은 배선이라 자동 테스트를
 쓰지 않는다 — 브라우저에서 사람이 직접 확인해야 하고, 순서와 각 항목에서
 정확히 무엇이 보여야 하는지는 `docs/BROWSER-CHECKLIST.md` 에 있다.
 
