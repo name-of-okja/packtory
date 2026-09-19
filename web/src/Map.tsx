@@ -5,6 +5,9 @@ import { equipmentRect, floorBounds, toSvgY, type Bounds, type Selection } from 
 
 type ViewBox = [number, number, number, number]
 
+/** CSS 픽셀. 이보다 움직였으면 선택이 아니라 팬이다. */
+const DRAG_SLOP = 4
+
 function fit(b: Bounds): ViewBox {
   return [b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY]
 }
@@ -48,12 +51,22 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
   const [vb, setVb] = useState<ViewBox>(() => fit(b))
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<{ x: number; y: number; vb: ViewBox } | null>(null)
+  // 팬 드래그가 끝나면 브라우저가 합성 click 을 쏘고, setPointerCapture 때문에
+  // 그 click 은 드래그를 시작한 요소로 되돌아온다. 막지 않으면 지도를 끌 때마다
+  // 선택이 발동하고, Task 10 에서는 CCTV 모달이 튀어나온다.
+  // (캡처 대상을 <svg> 로 옮기는 건 해법이 아니다 — 그러면 가만히 누른 클릭까지
+  //  <svg> 로 되돌아가 클릭 선택 자체가 죽는다.)
+  const moved = useRef(false)
 
   // 이상 칩은 층 전환과 이동을 같은 렌더에서 요청한다. 아래 두 effect 중
   // 층 전환 쪽이 먼저 돌아 전체보기로 덮어쓰면 이동이 없던 일이 되므로
   // nonce 로 비켜간다.
   const lastPan = useRef(0)
 
+  // 주의: 이 effect 는 반드시 아래 panTo effect보다 먼저 선언되어야 한다 —
+  // React 는 effect 를 선언 순서대로 실행하는데, 순서가 바뀌면 이 effect가 방금
+  // panTo effect 가 갱신한 lastPan 을 보고 자기 자신을 건너뛰지 않게 되어
+  // 이동이 조용히 층 전환에 덮어써지는 결함이 재발한다(타입 에러로 안 잡힘).
   // 층이 바뀌면 전체보기로 되돌린다
   useEffect(() => {
     if (panTo && panTo.nonce !== lastPan.current) return // 아래 effect 가 처리한다
@@ -85,12 +98,16 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
 
   const onPointerDown = (e: React.PointerEvent) => {
     drag.current = { x: e.clientX, y: e.clientY, vb }
+    // click 보다 pointerdown 이 항상 먼저 오므로 여기서 초기화하면
+    // 드래그가 요소 밖에서 끝나 click 이 안 와도 다음 클릭이 안 먹통이 된다.
+    moved.current = false
     ;(e.target as Element).setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current
     const svg = svgRef.current
     if (!d || !svg) return
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > DRAG_SLOP) moved.current = true
     const r = svg.getBoundingClientRect()
     const dx = ((e.clientX - d.x) / r.width) * d.vb[2]
     const dy = ((e.clientY - d.y) / r.height) * d.vb[3]
@@ -118,7 +135,11 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
         {sections.map((s) => {
           const [x, y, w, h] = s.rect
           return (
-            <g key={s.id} className="section" onClick={() => onSelect({ kind: "section", id: s.id })}>
+            <g
+              key={s.id}
+              className="section"
+              onClick={() => { if (moved.current) return; onSelect({ kind: "section", id: s.id }) }}
+            >
               <title>{s.label}</title>
               <rect x={x} y={toSvgY(y + h, b)} width={w} height={h} rx={0.5} />
               <text x={x + 0.8} y={toSvgY(y + h, b) + 1.8} className="section-label">
@@ -140,7 +161,11 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
             <g
               key={e.id}
               className={`equipment${warn ? " warn" : ""}${sel ? " selected" : ""}`}
-              onClick={(ev) => { ev.stopPropagation(); onSelect({ kind: "equipment", id: e.id }) }}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                if (moved.current) return
+                onSelect({ kind: "equipment", id: e.id })
+              }}
             >
               <title>{equipmentTip(e, values)}</title>
               <rect x={x} y={y} width={w} height={h} rx={0.3} />

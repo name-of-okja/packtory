@@ -16,6 +16,11 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .equipment:hover rect { fill: #46515f; }
 .equipment.warn rect { stroke: #e08a2e; stroke-width: 0.35; }
 .equipment.selected rect { stroke: #6aa9ff; stroke-width: 0.3; }
+/* 위 두 규칙은 특이도가 같고 둘 다 stroke 를 건드린다. 겹치면 선언 순서만으로
+   선택이 이기면서 경고가 조용히 지워진다 — 정확히 운영자가 경고 난 장비를
+   눌러본 순간 경고 표시가 사라진다. 겹칠 때는 경고가 이긴다: 데이터 상태가
+   UI 초점보다 중요하고, 선택은 채움색이라는 다른 채널로 표현한다. */
+.equipment.warn.selected rect { stroke: #e08a2e; stroke-width: 0.45; fill: #4a5361; }
 .equipment-label { fill: #aeb6c2; font-size: 0.9px; text-anchor: middle; pointer-events: none; }
 
 .map-controls { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
