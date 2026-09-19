@@ -1926,7 +1926,7 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
 
 `web/src/App.tsx`:
 ```tsx
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useScene } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import Map from "./Map.tsx"
@@ -2475,6 +2475,7 @@ git commit -m "feat: 층 탭 + 층별 상태 배지"
 
 `web/src/AlertBar.tsx`:
 ```tsx
+import { useEffect, useRef, useState } from "react"
 import type { Scene, TagValue } from "../../shared/types.ts"
 import { formatStall, segStallMs, segState } from "./Segment.tsx"
 
@@ -2494,12 +2495,40 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     .map((s) => ({ seg: s, ms: segStallMs(s.id, values) }))
     .sort((a, b) => b.ms - a.ms)
 
+  // 살아있는 영역이 알려야 할 것은 "정지가 새로 생겼다/풀렸다" 이지
+  // "초가 바뀌었다" 가 아니다. role="status" 는 암묵적으로 aria-atomic="true"
+  // 라서, 칩 하나의 타이머가 500ms 마다 갱신될 때마다 스크린리더가 막대
+  // 전체를 다시 읽는다 — 정지가 둘이면 두 배로 읽는다. 그래서 칩에서는
+  // 살아있는 영역을 떼고, 아래 announcer 가 "집합이 바뀐 순간" 에만 말한다.
+  const ids = stalled.map(({ seg }) => seg.id).join(",")
+  const [announcement, setAnnouncement] = useState("")
+  const prevIds = useRef<string | null>(null)
+
+  useEffect(() => {
+    // 첫 렌더에서는 알리지 않는다 — 화면을 켠 순간 읽어줄 이유가 없다.
+    if (prevIds.current === null) { prevIds.current = ids; return }
+    if (prevIds.current === ids) return
+    prevIds.current = ids
+    setAnnouncement(
+      stalled.length === 0
+        ? "정상 가동으로 복귀"
+        : `정지 ${stalled.length}건: ${stalled.map(({ seg }) => seg.label).join(", ")}`,
+    )
+  }, [ids, stalled])
+
+  // 항상 마운트된다. 마운트/언마운트 자체가 알림이 되면 안 되므로
+  // "정상 가동" 분기에도 똑같이 존재해야 한다.
+  const announcer = (
+    <span className="sr-only" aria-live="polite">{announcement}</span>
+  )
+
   if (stalled.length === 0) {
-    return <div className="alert-bar ok">정상 가동</div>
+    return <div className="alert-bar ok">정상 가동{announcer}</div>
   }
 
   return (
-    <div className="alert-bar" role="status">
+    <div className="alert-bar">
+      {announcer}
       {stalled.map(({ seg, ms }) => {
         const section = scene.sections.find((x) => x.id === seg.section)
         return (
@@ -2523,6 +2552,16 @@ export default function AlertBar({ scene, values, onGo }: Props) {
 .alert-bar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 8px 12px; background: #12161d; border-bottom: 1px solid #222833; min-height: 44px;
+  /* .app 이 `auto 1fr` 이라 이 막대가 자라는 만큼 지도가 줄어든다. 정지가
+     여럿이면 칩이 여러 줄로 감기면서, 볼 게 제일 많은 순간에 지도가 제일
+     작아진다 — 제품 목적의 정반대다. 상한을 두고 넘치면 막대 안에서 스크롤. */
+  max-height: 25vh; overflow-y: auto;
+}
+
+/* 눈에는 안 보이되 스크린리더에는 읽히는 영역 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .alert-bar.ok { color: #7fd694; }
 .chip {
@@ -2553,6 +2592,10 @@ export default function App() {
   const [floorId, setFloorId] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection>(null)
   const [panTo, setPanTo] = useState<{ x: number; y: number; nonce: number } | null>(null)
+  // Date.now() 를 쓰면 같은 밀리초 안의 두 번째 활성화(키 반복 등)가 같은 값을
+  // 내고, Map 의 `panTo.nonce === lastPan.current` 가드가 이미 처리한 것으로
+  // 보고 삼킨다 — nonce 가 존재하는 단 하나의 이유가 바로 그 경우다.
+  const nonceRef = useRef(0)
 
   if (error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {error}</p>
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
@@ -2564,7 +2607,8 @@ export default function App() {
   // 층 전환과 이동을 한 번에. nonce 가 있어야 같은 칩을 연달아 눌러도 다시 움직인다.
   const goTo = (f: string, x: number, y: number) => {
     setFloorId(f)
-    setPanTo({ x, y, nonce: Date.now() })
+    nonceRef.current += 1
+    setPanTo({ x, y, nonce: nonceRef.current })
   }
 
   return (
