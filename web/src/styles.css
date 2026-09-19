@@ -1,3 +1,32 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1115; color: #e6e8eb; }
+
+.map { position: relative; width: 100%; height: 100%; }
+.map svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; background: #0f1115; }
+.map svg:active { cursor: grabbing; }
+
+.section rect { fill: #1a1f27; stroke: #2b3240; stroke-width: 0.12; }
+.section { cursor: pointer; }
+.section:hover rect { fill: #1f2530; }
+.section-label { fill: #8b94a3; font-size: 1.2px; pointer-events: none; }
+
+.equipment rect { fill: #39424f; stroke: #5b6675; stroke-width: 0.1; }
+.equipment { cursor: pointer; }
+.equipment:hover rect { fill: #46515f; }
+.equipment.warn rect { stroke: #e08a2e; stroke-width: 0.35; }
+.equipment.selected rect { stroke: #6aa9ff; stroke-width: 0.3; }
+.equipment-label { fill: #aeb6c2; font-size: 0.9px; text-anchor: middle; pointer-events: none; }
+
+.map-controls { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
+.map-controls button {
+  width: 32px; height: 32px; border: 1px solid #2b3240; border-radius: 6px;
+  background: #171b22; color: #e6e8eb; font-size: 16px; cursor: pointer;
+}
+.map-controls button:hover { background: #222833; }
+
+.app { display: grid; grid-template-rows: 1fr; height: 100%; }
+.offline {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: #4a2020; border: 1px solid #7a3030; padding: 6px 12px; border-radius: 6px; z-index: 10;
+}
