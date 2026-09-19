@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useScene } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import Map from "./Map.tsx"
@@ -21,10 +21,16 @@ export default function App() {
   const floors = [...scene.floors].sort((a, b) => b.order - a.order)
   const current = floorId ?? floors[0].id
 
+  // Date.now() 를 쓰면 같은 밀리초 안의 두 번째 활성화(키 반복 등)가 같은 값을
+  // 내고, Map 의 `panTo.nonce === lastPan.current` 가드가 이미 처리한 것으로
+  // 보고 삼킨다 — nonce 가 존재하는 단 하나의 이유가 바로 그 경우다.
+  const nonceRef = useRef(0)
+
   // 층 전환과 이동을 한 번에. nonce 가 있어야 같은 칩을 연달아 눌러도 다시 움직인다.
   const goTo = (f: string, x: number, y: number) => {
     setFloorId(f)
-    setPanTo({ x, y, nonce: Date.now() })
+    nonceRef.current += 1
+    setPanTo({ x, y, nonce: nonceRef.current })
   }
 
   return (

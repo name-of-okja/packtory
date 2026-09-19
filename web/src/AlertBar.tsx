@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import type { Scene, TagValue } from "../../shared/types.ts"
 import { formatStall, segStallMs, segState } from "./Segment.tsx"
 
@@ -17,12 +18,40 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     .map((s) => ({ seg: s, ms: segStallMs(s.id, values) }))
     .sort((a, b) => b.ms - a.ms)
 
+  // 살아있는 영역이 알려야 할 것은 "정지가 새로 생겼다/풀렸다" 이지
+  // "초가 바뀌었다" 가 아니다. role="status" 는 암묵적으로 aria-atomic="true"
+  // 라서, 칩 하나의 타이머가 500ms 마다 갱신될 때마다 스크린리더가 막대
+  // 전체를 다시 읽는다 — 정지가 둘이면 두 배로 읽는다. 그래서 칩에서는
+  // 살아있는 영역을 떼고, 아래 announcer 가 "집합이 바뀐 순간" 에만 말한다.
+  const ids = stalled.map(({ seg }) => seg.id).join(",")
+  const [announcement, setAnnouncement] = useState("")
+  const prevIds = useRef<string | null>(null)
+
+  useEffect(() => {
+    // 첫 렌더에서는 알리지 않는다 — 화면을 켠 순간 읽어줄 이유가 없다.
+    if (prevIds.current === null) { prevIds.current = ids; return }
+    if (prevIds.current === ids) return
+    prevIds.current = ids
+    setAnnouncement(
+      stalled.length === 0
+        ? "정상 가동으로 복귀"
+        : `정지 ${stalled.length}건: ${stalled.map(({ seg }) => seg.label).join(", ")}`,
+    )
+  }, [ids, stalled])
+
+  // 항상 마운트된다. 마운트/언마운트 자체가 알림이 되면 안 되므로
+  // "정상 가동" 분기에도 똑같이 존재해야 한다.
+  const announcer = (
+    <span className="sr-only" aria-live="polite">{announcement}</span>
+  )
+
   if (stalled.length === 0) {
-    return <div className="alert-bar ok">정상 가동</div>
+    return <div className="alert-bar ok">정상 가동{announcer}</div>
   }
 
   return (
-    <div className="alert-bar" role="status">
+    <div className="alert-bar">
+      {announcer}
       {stalled.map(({ seg, ms }) => {
         const section = scene.sections.find((x) => x.id === seg.section)
         return (
