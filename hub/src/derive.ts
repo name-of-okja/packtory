@@ -8,12 +8,22 @@ export type SegMemory = {
 
 export type ValueMap = Map<string, { v: Value; q: Quality }>
 
-/** WIP. counterMax 가 있으면 모듈러 산술로 구한다 — 랩어라운드 뒤에도 맞아야 하므로. */
+/**
+ * WIP. counterMax 가 있으면 모듈러 산술로 구한다 — 랩어라운드 뒤에도 맞아야 하므로.
+ *
+ * 모듈러 차분은 w 와 w - m 사이에서 모호하다 — in/out 이 다른 PLC 레지스터라
+ * 스캔 한 번에 out 이 in 을 한 칸 앞서는 것(raw = -1)이 평범하고, wipOffset 을
+ * 맞추는 사이에도 카운터가 움직이므로 한두 칸 넘기는 것도 예상된 일이다.
+ * 그때 raw % m 은 m-1 에 가까운 큰 양수가 되어 "거의 꽉 찬 채 정지"로 오판된다.
+ * 실제 WIP 는 모듈러스의 절반에 근접할 수 없으므로(씬의 capacity 는 수십 이하)
+ * 상위 절반을 음의 차분으로 보고 0 으로 접는다.
+ */
 function wipOf(seg: Segment, inN: number, outN: number): number {
   const raw = inN - outN + (seg.wipOffset ?? 0)
   if (seg.counterMax === undefined) return Math.max(0, raw)
   const m = seg.counterMax + 1
-  return ((raw % m) + m) % m
+  const w = ((raw % m) + m) % m
+  return w > m / 2 ? 0 : w
 }
 
 /** 정상이면 델타(>= 0), 재기준선이 필요하면 null */

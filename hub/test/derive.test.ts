@@ -109,3 +109,13 @@ test("WIP 는 음수가 되지 않는다", () => {
   const { tags } = derive([seg], vals(100, 90), prev, 1_000, STALL)
   assert.equal(pick(tags, "wip").v, 0)
 })
+
+test("counterMax 가 있는 구간에서 out 이 in 보다 한 칸 앞서면(raw=-1) wip 는 0 이고 idle 이지 32767 짜리 stalled 가 아니다", () => {
+  const seg: Segment = { ...SEG, counterMax: 32767 }
+  // out 이 in 보다 한 칸 앞선 상태(다른 PLC 레지스터를 스캔 한 번에 읽은 흔한 경우)가
+  // 이미 기준선에 있고, 이번 틱에는 둘 다 안 움직인다 — 그래야 정지 시계가 실제로 흐른다.
+  const prev = new Map<string, SegMemory>([["c1", { lastIn: 100, lastOut: 101, lastOutChangeTs: 0 }]])
+  const { tags } = derive([seg], vals(100, 101), prev, 1_000 + 60_000, STALL)
+  assert.equal(pick(tags, "wip").v, 0)
+  assert.equal(pick(tags, "state").v, "idle")
+})
