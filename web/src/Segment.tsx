@@ -40,9 +40,11 @@ type Props = {
   zoomedIn: boolean
   selection: Selection
   onSelect: (s: Selection) => void
+  /** 리프트를 클릭하면 상대 층으로 전환한다 (스펙 8장·완료 기준 10) */
+  onFloorChange: (floorId: string) => void
 }
 
-export default function Segments({ scene, values, floorId, bounds, zoomedIn, selection, onSelect }: Props) {
+export default function Segments({ scene, values, floorId, bounds, zoomedIn, selection, onSelect, onFloorChange }: Props) {
   const flat = scene.segments.filter(
     (s) => !isLift(s) && s.from.floor === floorId,
   )
@@ -122,7 +124,9 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
             key={`${seg.id}-${floorId}`}
             className="lift"
             data-state={state}
-            onClick={(e) => { e.stopPropagation(); onSelect({ kind: "segment", id: seg.id }) }}
+            // 스펙 8장 "클릭하면 상대 층으로 전환한다" / 완료 기준 10. 모달을 열지 않는다 —
+            // 수치는 아래 마커 라벨과 호버 툴팁에 이미 있다.
+            onClick={(e) => { e.stopPropagation(); onFloorChange(other.floor) }}
           >
             <title>{`${seg.label}\n${STATE_LABEL[state]} · WIP ${wip} · ${other.floor} 연결`}</title>
             <circle cx={here.x} cy={toSvgY(here.y, bounds)} r={1.1} />

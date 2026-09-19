@@ -58,6 +58,7 @@ export default function App() {
               zoomedIn={zoomedIn}
               selection={selection}
               onSelect={setSelection}
+              onFloorChange={setFloorId}
             />
           )}
         </Map>
