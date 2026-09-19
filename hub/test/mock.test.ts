@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { MockAdapter } from "../src/adapters/mock.ts"
 import { loadScene } from "../src/scene.ts"
+import { derive, type SegMemory, type ValueMap } from "../src/derive.ts"
 import type { TagValue, Value } from "../../shared/types.ts"
 
 const scene = loadScene(new URL("../../scene.json", import.meta.url).pathname)
@@ -82,4 +83,44 @@ test("state 태그를 직접 쓰지 않는다 — 판정 코드가 데모에서 
     assert.ok(!tag.endsWith(".state"), `모의 어댑터가 ${tag} 를 직접 썼다`)
     assert.ok(!tag.endsWith(".wip"), `모의 어댑터가 ${tag} 를 직접 썼다`)
   }
+})
+
+/**
+ * 완료 기준 8 의 합격 신호(스펙 §11) — "빨갛게 꽉 찬 conv-3 과 회색으로 텅
+ * 빈 conv-5 가 나란히" 뜨는 겹침이 실제로 존재하는지. BLOCK_PLAN·STARVE_PLAN·
+ * BLOCK_CYCLE_S·DRAIN_FACTOR·rateOf·scene.json 의 stallSec, mock.ts 의
+ * out ≤ in 상한 중 하나만 바뀌어도 이 겹침이 사라질 수 있는데, 그 중 어느
+ * 것도 이 사실 자체를 단언하지 않으면 회귀를 아무도 못 잡는다 — 이 테스트가
+ * 유일하게 "데모의 중심 장면"을 코드로 지킨다.
+ *
+ * MockAdapter.tick() 과 실제 derive() 를 가짜 시계로 220초 돌려 매 틱마다
+ * conv-3.state/conv-5.state 를 살펴본다. 실측 겹침 창은 50.0s~90.0s(1주기)와
+ * 170.0s~210.0s(2주기) — 120초 주기가 그대로 반복되는지까지 확인한다.
+ */
+test("conv-3 이 stalled 이면서 conv-5 가 idle 인 겹침이 20초 이상 있고, 다음 주기에도 반복된다", () => {
+  let clock = 0
+  const adapter = new MockAdapter(scene, { now: () => clock })
+  const values: ValueMap = new Map()
+  let mem = new Map<string, SegMemory>()
+  const overlapSec = new Set<number>()
+
+  for (let t = 0; t <= 220_000; t += 100) {
+    clock = t
+    adapter.tick((tag, v) => values.set(tag, { v, q: "good" }))
+    const { tags, next } = derive(scene.segments, values, mem, clock, scene.stallSec)
+    mem = next
+    for (const tv of tags) values.set(tv.tag, { v: tv.v, q: tv.q })
+
+    const conv3 = tags.find((tv) => tv.tag === "conv-3.state")?.v
+    const conv5 = tags.find((tv) => tv.tag === "conv-5.state")?.v
+    if (conv3 === "stalled" && conv5 === "idle") overlapSec.add(Math.floor(t / 1000))
+  }
+
+  const overlapDurationIn = (fromSec: number, toSec: number) =>
+    [...overlapSec].filter((s) => s >= fromSec && s < toSec).length
+
+  const cycle1 = overlapDurationIn(50, 90)
+  const cycle2 = overlapDurationIn(170, 210)
+  assert.ok(cycle1 >= 20, `1주기(50~90s) 겹침이 20초 미만이다: ${cycle1}s`)
+  assert.ok(cycle2 >= 20, `2주기(170~210s) 겹침이 20초 미만이다: ${cycle2}s`)
 })
