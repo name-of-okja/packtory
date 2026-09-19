@@ -57,7 +57,12 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
         const d = segmentPath(seg, bounds)!
         const state = segState(seg.id, values)
         const wip = segWip(seg.id, values)
-        const dots = state === "unknown" ? 0 : Math.min(wip, MAX_DOTS)
+        // 점 i 의 위상은 (t/dur + i/capacity) mod 1 이라 i 와 i+capacity 는 정확히
+        // 겹친다. capacity 를 넘겨 그려봐야 보이지 않는 원만 쌓이므로 거기서 끊는다.
+        // 그래서 구간은 "꽉 차면 꽉 차 보이고" 그 위는 숫자가 말한다 — capacity 가
+        // 제 뜻대로 쓰이는 셈이다. MAX_DOTS 는 그 위의 안전 상한으로 남는다.
+        const cap = Math.min(seg.capacity ?? 20, MAX_DOTS)
+        const dots = state === "unknown" ? 0 : Math.min(wip, cap)
         const dur = pathLength(seg) / VISUAL_SPEED
         // 점 간격을 capacity 로 고정한다. n 으로 나누면 점이 늘 때마다
         // 기존 점들의 delay 가 바뀌어 화면 전체가 튄다.
@@ -86,9 +91,9 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
                 }}
               />
             ))}
-            {wip > MAX_DOTS && (
+            {wip > dots && (
               <text className="overflow" x={seg.to.x} y={toSvgY(seg.to.y, bounds) - 1}>
-                +{wip - MAX_DOTS}
+                +{wip - dots}
               </text>
             )}
             {zoomedIn && (

@@ -74,19 +74,23 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 
 .segment.selected .rail, .lift.selected circle { stroke: #6aa9ff; }
 
-/* 움직임을 줄이라고 한 사용자에게는 애니메이션을 끈다.
-   상태는 색·점선·점 개수가 이미 다 전달하므로 정보가 사라지지 않는다.
-   주의: 여기서 `animation: none` 을 쓰면 안 된다 — .item 의 위치는 오직
-   @keyframes flow 의 offset-distance 로만 정해지는데, 애니메이션 자체를
-   지우면 그 값이 캐스케이드에서 완전히 빠져 offset-distance 의 초기값인
-   0%(경로 시작점)로 되돌아간다. 그러면 인덱스와 무관하게 모든 점이 구간
-   시작점 한 점에 겹쳐버려 "몇 개가 밀려 있는지"라는 정보 자체가 사라진다.
-   animation-play-state: paused 는 같은 정지 상태에서도 각 점의
-   animation-delay 로 정해지는 자기 위치(= 대기열 상의 제 위치)에서 그대로
-   얼어붙으므로, 정지 중인 구간의 .item 이 쓰는 것과 동일한 메커니즘으로
-   정보 손실 없이 멈춘다. */
+/* 움직임을 줄이라고 한 사용자에게도 정보는 하나도 사라지면 안 된다.
+   점과 깜빡임은 반대로 다뤄야 한다 — 하나로 묶으면 안 된다.
+   점: animation: none 을 주면 안 된다 — .item 의 위치는 오직 @keyframes flow 의
+   offset-distance 로만 정해지는데, 애니메이션 자체를 지우면 그 값이 캐스케이드
+   에서 완전히 빠져 초기값인 0%(경로 시작점)로 되돌아간다. 그러면 인덱스와
+   무관하게 모든 점이 구간 시작점 한 점에 겹쳐버려 "몇 개가 밀려 있는지"라는
+   정보 자체가 사라진다. animation-play-state: paused 는 각 점을 자기
+   animation-delay 가 정한 위치(= 대기열 상의 제자리)에서 그대로 얼어붙게 한다.
+   깜빡임: 반대로 paused 를 주면 안 된다 — 앱이 이미 돌고 있는 도중에 사용자가
+   설정을 켜면 blink 주기 중간(opacity: 0.35)에서 얼어붙어 경보색이 흐려질 수
+   있다. 깜빡임은 순수 장식이고 opacity 기본값이 1(완전 불투명)이므로 통째로
+   꺼도 정보 손실이 없다 — 색과 점선은 이 미디어쿼리와 무관한 별도 규칙이라
+   정적으로 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
-  .item, .segment[data-state="stalled"] .rail, .lift[data-state="stalled"] circle {
-    animation-play-state: paused !important;
+  .item { animation-play-state: paused !important; }
+  .segment[data-state="stalled"] .rail,
+  .lift[data-state="stalled"] circle {
+    animation: none !important;
   }
 }
