@@ -2516,19 +2516,22 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     )
   }, [ids, stalled])
 
-  // 항상 마운트된다. 마운트/언마운트 자체가 알림이 되면 안 되므로
-  // "정상 가동" 분기에도 똑같이 존재해야 한다.
+  // 살아있는 영역은 내용이 바뀌기 **전에** 이미 DOM 에 있어야 한다. 새로 삽입된
+  // 영역의 초기 내용은 안 읽어주는 AT 가 있기 때문이다. 두 분기 안에 각각 쓰면
+  // JSX 가 형제 위치로 대조하므로 ok↔정지 전환 때마다 언마운트·재마운트된다 —
+  // 그래서 분기 바깥, 프래그먼트의 첫 자식으로 고정한다. position: absolute 라
+  // 그리드 트랙을 만들지 않으므로 레이아웃에는 영향이 없다.
   const announcer = (
     <span className="sr-only" aria-live="polite">{announcement}</span>
   )
 
-  if (stalled.length === 0) {
-    return <div className="alert-bar ok">정상 가동{announcer}</div>
-  }
-
   return (
-    <div className="alert-bar">
+    <>
       {announcer}
+      {stalled.length === 0 ? (
+        <div className="alert-bar ok">정상 가동</div>
+      ) : (
+        <div className="alert-bar">
       {stalled.map(({ seg, ms }) => {
         const section = scene.sections.find((x) => x.id === seg.section)
         return (
@@ -2541,7 +2544,9 @@ export default function AlertBar({ scene, values, onGo }: Props) {
           </button>
         )
       })}
-    </div>
+        </div>
+      )}
+    </>
   )
 }
 ```
