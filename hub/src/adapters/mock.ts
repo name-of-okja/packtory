@@ -13,6 +13,14 @@ const BLOCK_PLAN: Record<string, [number, number]> = {
   "conv-3": [30, 90],
 }
 const BLOCK_CYCLE_S = 120
+/**
+ * 막힘이 풀렸을 때 out 이 in 보다 몇 배 빠르게 나가 적체를 배출하는지.
+ * conv-3 은 60초(30~90초) 막혀 backlog 120개가 쌓인다. 3배면 배출
+ * 순유량이 (3-1)×2/s = 4/s 라 120개를 30초 만에 비우고, 다음 막힘
+ * (120초 주기의 30초 지점, 즉 지금부터 60초 뒤)까지 30초 여유가 남는다 —
+ * 데모가 매 주기 반복 가능해야 하므로 여유를 넉넉히 둔다.
+ */
+const DRAIN_FACTOR = 3
 
 /** 구간별 목표 처리량 (개/초) */
 function rateOf(seg: Segment): number {
@@ -55,10 +63,16 @@ export class MockAdapter implements Adapter {
       c.accIn -= wIn
 
       if (!this.isBlocked(seg.id, elapsed)) {
-        c.accOut += per
-        const wOut = Math.floor(c.accOut)
+        // 적체(backlog = in - out)가 있으면 out 을 DRAIN_FACTOR 배로 내보내
+        // 배출한다 — 실제 라인도 하류가 밀린 만큼 당겨 쓴다. 그대로 두면(both
+        // 2/s) conv-3 의 WIP 가 막힘 해제 뒤에도 영원히 안 줄어든다.
+        const backlog = c.in - c.out
+        const outPer = backlog > 0 ? per * DRAIN_FACTOR : per
+        c.accOut += outPer
+        let wOut = Math.floor(c.accOut)
+        // out 이 in 을 앞지르면 안 된다 — 들어온 것보다 많이 나갈 수는 없다
+        if (wOut > backlog) { wOut = backlog; c.accOut = 0 } else { c.accOut -= wOut }
         c.out += wOut
-        c.accOut -= wOut
       }
 
       // counterMax 가 있으면 실제 PLC처럼 그 값에서 한 바퀴 돈다

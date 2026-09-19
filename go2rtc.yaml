@@ -1,0 +1,15 @@
+api:
+  listen: ":1984"
+  origin: "*"   # 개발 중 5173(vite) 에서 붙기 위해. 운영에서는 실제 출처로 좁힌다.
+
+streams:
+  # 실제 카메라 (H.264 전용. H.265는 트랜스코딩이 필요하므로 범위 밖)
+  # cam-in-1: rtsp://user:pass@192.168.0.21:554/stream1
+  # cam-fill-1: rtsp://user:pass@192.168.0.22:554/stream1
+  # cam-fill-2: rtsp://user:pass@192.168.0.23:554/stream1
+
+  # 개발용 대체 — sample.mp4 를 무한 반복해 H.264로 내보낸다
+  # (이 파일 옆에 sample.mp4 를 직접 넣어야 한다 — 저장소에는 포함하지 않는다)
+  cam-in-1: "ffmpeg:sample.mp4#video=copy#input=-re -stream_loop -1"
+  cam-fill-1: "ffmpeg:sample.mp4#video=copy#input=-re -stream_loop -1"
+  cam-fill-2: "ffmpeg:sample.mp4#video=copy#input=-re -stream_loop -1"
