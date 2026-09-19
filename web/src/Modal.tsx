@@ -39,6 +39,7 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
   const ready = useGo2rtcScript(go2rtcBase)
   const dialogRef = useRef<HTMLDivElement>(null)
   const prevFocusRef = useRef<HTMLElement | null>(null)
+  const downOnBackdrop = useRef(false)
 
   useEffect(() => { setTab(0) }, [selection?.kind, selection?.id])
   useEffect(() => {
@@ -116,17 +117,33 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
     if (!focusables || focusables.length === 0) return
     const first = focusables[0]
     const last = focusables[focusables.length - 1]
-    if (e.shiftKey && document.activeElement === first) {
+    const active = document.activeElement
+    // 열린 직후에는 초점이 컨테이너 자신에게 있고, 모달 안의 비-포커스 영역
+    // (제목, 수치 행)을 클릭해도 초점은 가장 가까운 포커스 가능 조상 =
+    // 컨테이너로 간다. 그 상태를 first 로도 last 로도 보지 않으면 다음
+    // Shift+Tab 이 그대로 배경으로 빠져나간다 — 트랩이 막으려던 바로 그 일이고,
+    // 키보드 사용자가 제일 먼저 시도할 조합에서 터진다. 컨테이너에서 앞으로
+    // Tab 하는 경우는 손대지 않는다 — 브라우저 기본 동작이 이미 first 로 간다.
+    const atContainer = active === dialogRef.current
+    if (e.shiftKey && (active === first || atContainer)) {
       e.preventDefault()
       last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
+    } else if (!e.shiftKey && active === last) {
       e.preventDefault()
       first.focus()
     }
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      // 모달 안에서 시작해 배경에서 끝나는 드래그(수치를 긁어 복사하는, 관제
+      // 화면에서 아주 흔한 동작)는 click 이 두 지점의 공통 조상 = 배경에서
+      // 발생한다. 그러면 .modal 의 stopPropagation 을 거치지 않아 모달이 선택
+      // 도중에 닫힌다. 눌린 지점도 배경이었을 때만 닫는다.
+      onPointerDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget }}
+      onClick={() => { if (downOnBackdrop.current) onClose() }}
+    >
       <div
         ref={dialogRef}
         className="modal"
