@@ -2701,7 +2701,7 @@ declare namespace JSX {
 
 `web/src/Modal.tsx`:
 ```tsx
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Camera, Scene, TagValue } from "../../shared/types.ts"
 import type { Selection } from "./geom.ts"
 import { STATE_LABEL, formatStall, segStallMs, segState, segWip } from "./Segment.tsx"
@@ -2737,12 +2737,26 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
   const [tab, setTab] = useState(0)
   const ready = useGo2rtcScript(go2rtcBase)
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const prevFocusRef = useRef<HTMLElement | null>(null)
+  const downOnBackdrop = useRef(false)
+
   useEffect(() => { setTab(0) }, [selection?.kind, selection?.id])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
+
+  // 모달이 열리면 초점을 안으로 옮기고, 닫히면 열기 전 요소로 되돌린다.
+  // 컨테이너(tabIndex=-1)에 초점을 주는 이유는, 닫기 버튼에 주면 스크린리더가
+  // "닫기 버튼" 만 읽고 무엇이 열렸는지는 안 알려주기 때문이다.
+  useEffect(() => {
+    if (!selection) return
+    prevFocusRef.current = document.activeElement as HTMLElement | null
+    dialogRef.current?.focus()
+    return () => { prevFocusRef.current?.focus() }
+  }, [selection?.kind, selection?.id])
 
   if (!selection) return null
 
@@ -2793,9 +2807,51 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
     .map((id) => scene.cameras.find((c) => c.id === id))
     .filter((c): c is Camera => !!c)
 
+  // Tab 이 모달 밖으로 나가지 않게 가둔다. 배경이 시각적으로만 가려진 게 아니라
+  // 키보드로도 닿지 않아야 진짜 모달이다 — 뒤에 층 탭·이상 칩 버튼이 그대로
+  // 살아 있어서, 트랩이 없으면 Tab 만으로 모달이 뜬 채 배경을 조작할 수 있다.
+  const onTrapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return
+    const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE)
+    if (!focusables || focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const active = document.activeElement
+    // 열린 직후에는 초점이 컨테이너 자신에게 있고, 모달 안의 비-포커스 영역
+    // (제목, 수치 행)을 클릭해도 초점은 가장 가까운 포커스 가능 조상 =
+    // 컨테이너로 간다. 그 상태를 first 로도 last 로도 보지 않으면 다음
+    // Shift+Tab 이 그대로 배경으로 빠져나간다 — 트랩이 막으려던 바로 그 일이고,
+    // 키보드 사용자가 제일 먼저 시도할 조합에서 터진다.
+    const atContainer = active === dialogRef.current
+    if (e.shiftKey && (active === first || atContainer)) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-backdrop"
+      // 모달 안에서 시작해 배경에서 끝나는 드래그(수치를 긁어 복사하는, 관제
+      // 화면에서 아주 흔한 동작)는 click 이 두 지점의 공통 조상 = 배경에서
+      // 발생한다. 그러면 .modal 의 stopPropagation 을 거치지 않아 모달이 선택
+      // 도중에 닫힌다. 눌린 지점도 배경이었을 때만 닫는다.
+      onPointerDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget }}
+      onClick={() => { if (downOnBackdrop.current) onClose() }}
+    >
+      <div
+        ref={dialogRef}
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        onKeyDown={onTrapTab}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header>
           <h2>{title}</h2>
           {section && selection.kind !== "section" && <span className="modal-sub">{section.label}</span>}
