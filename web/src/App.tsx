@@ -5,6 +5,7 @@ import Map from "./Map.tsx"
 import Segments from "./Segment.tsx"
 import FloorTabs from "./FloorTabs.tsx"
 import AlertBar from "./AlertBar.tsx"
+import Modal from "./Modal.tsx"
 import type { Selection } from "./geom.ts"
 
 export default function App() {
@@ -60,6 +61,13 @@ export default function App() {
           )}
         </Map>
       </div>
+      <Modal
+        scene={scene}
+        values={values}
+        go2rtcBase={data.go2rtcBase}
+        selection={selection}
+        onClose={() => setSelection(null)}
+      />
     </div>
   )
 }

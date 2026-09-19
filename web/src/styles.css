@@ -139,3 +139,26 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ── 모달 + CCTV ──────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: grid; place-items: center; z-index: 50;
+}
+.modal {
+  width: min(560px, 92vw); max-height: 88vh; overflow: auto;
+  background: #171b22; border: 1px solid #2b3240; border-radius: 10px; padding: 16px;
+}
+.modal header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.modal h2 { margin: 0; font-size: 18px; }
+.modal-sub { color: #8b94a3; font-size: 13px; }
+.modal .close { margin-left: auto; background: none; border: 0; color: #8b94a3; font-size: 18px; cursor: pointer; }
+.video { margin-bottom: 12px; }
+.video video-stream { display: block; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; }
+.video-error { color: #d99; }
+.tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.tabs button { padding: 4px 10px; border: 1px solid #2b3240; border-radius: 6px; background: #12161d; color: #aeb6c2; cursor: pointer; }
+.tabs button.on { background: #243048; color: #e6e8eb; }
+.rows div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222833; }
+.rows dt { color: #8b94a3; margin: 0; }
+.rows dd { margin: 0; }
