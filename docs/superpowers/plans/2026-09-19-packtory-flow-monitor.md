@@ -90,11 +90,7 @@ packtory/
 
 - [ ] **Step 1: 프로젝트 파일 생성**
 
-`.gitignore`:
-```
-node_modules/
-dist/
-```
+**`.gitignore` 는 이미 존재하며 `node_modules/`, `dist/`, `.worktrees/`, `.superpowers/` 를 담고 있다. 건드리지 않는다** — 뒤의 두 줄을 지우면 워크트리와 작업 원장이 저장소에 통째로 커밋된다.
 
 `hub/package.json`:
 ```json
@@ -1364,9 +1360,8 @@ git commit -m "feat: 모의 카운터 어댑터 (막힘 각본 포함)"
 **Interfaces:**
 - Consumes: `Scene`, `SceneResponse`, `TagValue`, `WsMessage` from `shared/types.ts`; 허브의 `GET /api/scene`, `GET /ws`
 - Produces:
-  - `fetchScene(): Promise<SceneResponse>`
-  - `useValues(): { values: Map<string, TagValue>; connected: boolean }`
   - `useScene(): { data: SceneResponse | null; error: string | null }`
+  - `useValues(): { values: Map<string, TagValue>; connected: boolean }`
 
 **검증 방식:** 이 태스크부터는 테스트 대신 수동 검증이다 (Global Constraints 참조).
 
@@ -1959,10 +1954,13 @@ git commit -m "feat: SVG 평면도 지도 + 팬/줌"
 
 **Interfaces:**
 - Consumes: `segmentPath`, `pathLength`, `toSvgY`, `Bounds` (Task 6); `SegState`, `Segment`, `TagValue` (Task 1)
-- Produces:
+- Produces (Task 8·9·10 이 전부 여기서 가져간다):
   - `segState(id: string, values: Map<string, TagValue>): SegState`
   - `segWip(id: string, values: Map<string, TagValue>): number`
-  - `<Segments scene values floorId bounds selection onSelect />`
+  - `segStallMs(id: string, values: Map<string, TagValue>): number`
+  - `formatStall(ms: number): string` — `"3:12"` 꼴
+  - `STATE_LABEL: Record<SegState, string>` — 한국어 상태 이름
+  - `<Segments scene values floorId bounds zoomedIn selection onSelect />`
 
 **애니메이션 위험 고지:** CSS `offset-path` 를 SVG 요소에 쓰는 것이 이 계획에서 유일하게 브라우저 동작이 불확실한 부분이다. Step 1에서 먼저 확인하고, 안 되면 Step 2의 대체안으로 간다.
 
@@ -2528,7 +2526,7 @@ export default function App() {
 3. **1층을 보고 있을 때 그 칩을 누르면 2층으로 전환되고 지도가 `conv-3` 으로 옮겨간다** (완료 기준 6)
 4. 칩을 다시 눌러도 또 움직인다 (nonce 가 없으면 한 번만 움직인다)
 5. 90초쯤 막힘이 풀리면 칩이 사라지고 "정상 가동" 으로 돌아온다
-6. **물건이 없어 멈춘 구간은 칩이 안 뜬다** — `hub` 를 끄고 `scene.json` 의 `BLOCK_PLAN` 대상을 `conv-5` 로 바꿔 띄우면 `conv-5` 는 `conv-3` 에서 물건이 안 와 `wip` 이 0에 가까우므로 `idle` 로 남는다. 확인 후 되돌린다 (완료 기준 8)
+6. **물건이 없어 멈춘 구간은 칩이 안 뜬다** — `hub` 를 끄고 `hub/src/adapters/mock.ts` 의 `BLOCK_PLAN` 대상을 `conv-5` 로 바꿔 띄우면 `conv-5` 는 `conv-3` 에서 물건이 안 와 `wip` 이 0에 가까우므로 `idle` 로 남는다. 확인 후 되돌린다 (완료 기준 8)
 
 - [ ] **Step 5: 커밋**
 
