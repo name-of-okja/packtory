@@ -65,6 +65,17 @@ test("막힘이 풀리면 out 이 다시 오른다", () => {
   assert.ok((at110.get("conv-3.out") as number) > (at80.get("conv-3.out") as number))
 })
 
+test("굶주림 구간(conv-5)은 in 이 멈추고 in == out 이 되어 구간이 빈다 — idle 의 전제조건", () => {
+  // STARVE_PLAN: conv-5 는 120초 주기의 40~95초에서 in 정지
+  const at40 = run(40)
+  const at60 = run(60)
+  assert.equal(at40.get("conv-5.in"), at60.get("conv-5.in"), "굶주린 동안 in 이 움직였다")
+  assert.equal(
+    at60.get("conv-5.in"), at60.get("conv-5.out"),
+    "in 이 멈췄는데 out 이 못 따라가 구간이 안 비었다 — 그러면 wip > 0 로 남아 idle 이 아니라 stalled 로 보인다",
+  )
+})
+
 test("state 태그를 직접 쓰지 않는다 — 판정 코드가 데모에서 실행되어야 한다", () => {
   const seen = run(60)
   for (const tag of seen.keys()) {
