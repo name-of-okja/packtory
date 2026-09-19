@@ -2122,7 +2122,12 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
         const d = segmentPath(seg, bounds)!
         const state = segState(seg.id, values)
         const wip = segWip(seg.id, values)
-        const dots = state === "unknown" ? 0 : Math.min(wip, MAX_DOTS)
+        // 점 i 의 위상은 (t/dur + i/capacity) mod 1 이라 i 와 i+capacity 는 정확히
+        // 겹친다. capacity 를 넘겨 그려봐야 보이지 않는 원만 쌓이므로 거기서 끊는다.
+        // 그래서 구간은 "꽉 차면 꽉 차 보이고" 그 위는 숫자가 말한다 — capacity 가
+        // 제 뜻대로 쓰이는 셈이다. MAX_DOTS 는 그 위의 안전 상한으로 남는다.
+        const cap = Math.min(seg.capacity ?? 20, MAX_DOTS)
+        const dots = state === "unknown" ? 0 : Math.min(wip, cap)
         const dur = pathLength(seg) / VISUAL_SPEED
         // 점 간격을 capacity 로 고정한다. n 으로 나누면 점이 늘 때마다
         // 기존 점들의 delay 가 바뀌어 화면 전체가 튄다.
@@ -2151,9 +2156,9 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
                 }}
               />
             ))}
-            {wip > MAX_DOTS && (
+            {wip > dots && (
               <text className="overflow" x={seg.to.x} y={toSvgY(seg.to.y, bounds) - 1}>
-                +{wip - MAX_DOTS}
+                +{wip - dots}
               </text>
             )}
             {zoomedIn && (
@@ -2242,17 +2247,21 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
 
 .segment.selected .rail, .lift.selected circle { stroke: #6aa9ff; }
 
-/* 움직임을 줄이라고 한 사용자에게는 애니메이션을 끈다.
-   상태는 색·점선·점 개수가 이미 다 전달하므로 정보가 사라지지 않는다. */
-/* animation: none 을 주면 안 된다 — offset-distance 는 이 애니메이션 말고
+/* 움직임을 줄이라고 한 사용자에게도 정보는 하나도 사라지면 안 된다. */
+/* 점은 paused 여야 한다. animation: none 을 주면 안 된다 — offset-distance 는 이 애니메이션 말고
    값의 출처가 없어서, 모든 점이 경로 시작점 하나로 뭉치고 "얼마나 찼나" 라는
    신호가 통째로 사라진다. 이 미디어쿼리가 지키려던 바로 그 정보다.
    animation-play-state: paused 는 각 점이 animation-delay 로 정해진 제자리
    (= 대기열 상의 위치)에서 얼어붙으므로, 정지 구간의 .item 과 동일한
    메커니즘으로 정보 손실 없이 멈춘다. */
 @media (prefers-reduced-motion: reduce) {
-  .item, .segment[data-state="stalled"] .rail, .lift[data-state="stalled"] circle {
-    animation-play-state: paused !important;
+  .item { animation-play-state: paused !important; }
+  /* 깜빡임은 반대다. paused 로 두면 앱이 도는 중에 설정을 켠 사용자에게
+     opacity 0.35 에서 얼어붙어 경보색이 흐려질 수 있다. 깜빡임은 순수 장식이고
+     opacity 기본값이 1 이므로 통째로 끄는 게 맞다 — 색과 점선은 정적이라 남는다. */
+  .segment[data-state="stalled"] .rail,
+  .lift[data-state="stalled"] circle {
+    animation: none !important;
   }
 }
 ```
@@ -2291,7 +2300,7 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
 확인할 것:
 1. 2층에서 `conv-3` 과 `conv-5` 에 초록 점이 왼쪽에서 오른쪽으로 흐른다
 2. `conv-5` 는 `via` 때문에 중간에 꺾이고, 점이 그 꺾인 경로를 따라간다
-3. **40초쯤 기다리면 `conv-3` 이 빨강 점선으로 바뀌고 깜빡이며, 점이 그 자리에 얼어붙고, 점 개수가 계속 늘어난다** (완료 기준 3)
+3. **40초쯤 기다리면 `conv-3` 이 빨강 점선으로 바뀌고 깜빡이며, 점이 그 자리에 얼어붙고, 점이 `capacity`(12개)까지 차오른 뒤로는 `+N` 숫자가 계속 커진다** (완료 기준 3)
 4. 90초쯤에 막힘이 풀리고 다시 초록으로 흐른다
 5. 점이 새로 생겨도 **기존 점들이 제자리에서 계속 흐른다** (전체가 튀면 `gap` 계산이 잘못된 것이다)
 6. 1층 탭이 아직 없으므로 `App.tsx` 의 `floors[0].id` 를 잠시 `"1F"` 로 바꿔 확인한다: `conv-1` 이 흐르고, 오른쪽 끝에 `▲ 2F · N` 리프트 마커가 보인다. 확인 후 되돌린다
