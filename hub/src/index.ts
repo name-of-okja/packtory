@@ -63,7 +63,17 @@ export async function startHub(opts: HubOptions) {
       return
     }
     // 정적 파일. SPA 라우팅이 없으므로 없는 경로는 index.html 로 떨어뜨린다.
-    const rel = normalize(decodeURIComponent((req.url ?? "/").split("?")[0])).replace(/^(\.\.[/\\])+/, "")
+    // decodeURIComponent 는 `GET /%` 같은 깨진 퍼센트 인코딩에 URIError 를 던진다.
+    // async 핸들러 안이라 잡지 않으면 unhandled rejection 으로 프로세스가 죽는다 —
+    // OT망에 상주하는 서버를 요청 한 번으로 내릴 수 있으므로 반드시 감싼다.
+    let decoded: string
+    try {
+      decoded = decodeURIComponent((req.url ?? "/").split("?")[0])
+    } catch {
+      res.writeHead(400).end()
+      return
+    }
+    const rel = normalize(decoded).replace(/^(\.\.[/\\])+/, "")
     const path = join(opts.webDir, rel === "/" ? "index.html" : rel)
     try {
       const buf = await readFile(path)
