@@ -99,13 +99,19 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .floor-tabs { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: #12161d; border-right: 1px solid #222833; }
 .floor-tab {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  width: 52px; padding: 8px 4px; border: 1px solid #2b3240; border-radius: 6px;
+  width: 58px; padding: 8px 4px; border: 1px solid #2b3240; border-radius: 6px;
   background: #171b22; color: #aeb6c2; cursor: pointer;
 }
 .floor-tab:hover { background: #222833; }
 .floor-tab.current { background: #243048; border-color: #3c5a8a; color: #e6e8eb; }
 .floor-id { font-weight: 600; }
-.floor-badge { font-size: 11px; }
+.floor-badge { font-size: 12px; line-height: 1; }
+.floor-state { font-size: 9px; }
+/* 색은 모양·낱말 위에 얹는 세 번째 채널이지 유일한 채널이 아니다. */
+.floor-tab[data-state="running"] .floor-badge { color: #7fd694; }
+.floor-tab[data-state="stalled"] .floor-badge { color: #ff8a8a; }
+.floor-tab[data-state="idle"]    .floor-badge { color: #8b94a3; }
+.floor-tab[data-state="unknown"] .floor-badge { color: #6b7280; }
 .floor-tab[data-state="stalled"] { border-color: #d24b4b; }
 
 .body { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 0; }
