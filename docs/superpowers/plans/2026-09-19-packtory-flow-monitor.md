@@ -849,9 +849,16 @@ test("값이 바뀌면 values 로 푸시하고, 안 바뀐 태그는 안 보낸�
     const ws = new WebSocket(`ws://127.0.0.1:${hub.port}/ws`)
     await nextMessage(ws, (m) => m.type === "snapshot")
 
+    // 첫 derive 틱이 파생 태그를 한 번 내보내고 나면 그 뒤로는 값이 안 바뀐다.
+    // 그게 흘러간 뒤에 emit 해야 "바뀐 태그 하나만 온다" 를 결정적으로 단언할 수 있다.
+    await new Promise((r) => setTimeout(r, 700))
+
     fake.emit("filler-1.temp", 77, Date.now())
     const msg = await nextMessage(ws, (m) => m.type === "values" && !!tagOf(m, "filler-1.temp"))
     assert.equal(tagOf(msg, "filler-1.temp")!.v, 77)
+    // 이름이 약속한 나머지 절반. 이 단언이 없으면 cache.set 이 항상 true 를 반환하도록
+    // 망가져도 테스트가 통과한다 — 즉 존재 이유인 회귀를 못 잡는다.
+    assert.equal(msg.data.length, 1)
     ws.close()
   } finally {
     await hub.close()
@@ -1056,7 +1063,17 @@ export async function startHub(opts: HubOptions) {
       return
     }
     // 정적 파일. SPA 라우팅이 없으므로 없는 경로는 index.html 로 떨어뜨린다.
-    const rel = normalize(decodeURIComponent((req.url ?? "/").split("?")[0])).replace(/^(\.\.[/\\])+/, "")
+    // decodeURIComponent 는 `GET /%` 같은 깨진 퍼센트 인코딩에 URIError 를 던진다.
+    // async 핸들러 안이라 잡지 않으면 unhandled rejection 으로 프로세스가 죽는다 —
+    // OT망에 상주하는 서버를 요청 한 번으로 내릴 수 있으므로 반드시 감싼다.
+    let decoded: string
+    try {
+      decoded = decodeURIComponent((req.url ?? "/").split("?")[0])
+    } catch {
+      res.writeHead(400).end()
+      return
+    }
+    const rel = normalize(decoded).replace(/^(\.\.[/\\])+/, "")
     const path = join(opts.webDir, rel === "/" ? "index.html" : rel)
     try {
       const buf = await readFile(path)
