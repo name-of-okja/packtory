@@ -2336,7 +2336,7 @@ git commit -m "feat: 구간 흐름 애니메이션 + 정지/대기/불명 상태
 `web/src/FloorTabs.tsx`:
 ```tsx
 import type { Scene, SegState, TagValue } from "../../shared/types.ts"
-import { segState } from "./Segment.tsx"
+import { STATE_LABEL, segState } from "./Segment.tsx"
 
 /**
  * 그 층에서 가장 나쁜 상태. 리프트는 양쪽 층에 다 걸리므로 두 층 모두에 반영된다 —
@@ -2346,16 +2346,26 @@ export function floorState(scene: Scene, floorId: string, values: Map<string, Ta
   const on = scene.segments.filter((s) => s.from.floor === floorId || s.to.floor === floorId)
   const states = on.map((s) => segState(s.id, values))
   if (states.includes("stalled")) return "stalled"
-  if (states.includes("running")) return "running"
+  // unknown 이 running 보다 위다. unknown 은 "이 구간이 뭘 하는지 모른다" 이지
+  // "괜찮다" 가 아니다 — 센서나 통신이 죽었을 뿐 실제로는 막혀 있을 수 있다.
+  // 도는 구간 열 개에 가려 초록으로 뜨면, 이 배지가 존재하는 이유인
+  // "안 보는 층의 이상을 알린다" 가 하필 그 상태에서 무력해진다.
   if (states.includes("unknown")) return "unknown"
+  if (states.includes("running")) return "running"
   return "idle"
 }
 
+/**
+ * 배지는 모양으로 먼저 구분되고 색은 거들 뿐이다.
+ * 🟢🔴⚪⚫ 는 전부 같은 "채워진 원" 이라 색을 빼면 넷이 구별되지 않는다.
+ * 하필 이 화면에서 제일 중요한 가동/정지가 초록/빨강 쌍인데, 그게 가장 흔한
+ * 색각 이상에서 구분이 안 되는 조합이다. 모양과 한국어 낱말을 같이 붙인다.
+ */
 const BADGE: Record<SegState, string> = {
-  running: "🟢",
-  stalled: "🔴",
-  idle: "⚪",
-  unknown: "⚫",
+  running: "●",
+  stalled: "▲",
+  idle: "○",
+  unknown: "?",
 }
 
 type Props = {
@@ -2377,10 +2387,14 @@ export default function FloorTabs({ scene, values, current, onChange }: Props) {
             className={`floor-tab${f.id === current ? " current" : ""}`}
             data-state={st}
             aria-current={f.id === current}
+            // 스크린리더는 이 한 줄만 읽는다. 안쪽 글리프는 aria-hidden 이다 —
+            // "●" 를 유니코드 이름으로 읽어주면 아무 도움이 안 된다.
+            aria-label={`${f.label} ${STATE_LABEL[st]}`}
             onClick={() => onChange(f.id)}
           >
             <span className="floor-id">{f.id}</span>
-            <span className="floor-badge" aria-label={st}>{BADGE[st]}</span>
+            <span className="floor-badge" aria-hidden="true">{BADGE[st]}</span>
+            <span className="floor-state" aria-hidden="true">{STATE_LABEL[st]}</span>
           </button>
         )
       })}
@@ -2401,7 +2415,13 @@ export default function FloorTabs({ scene, values, current, onChange }: Props) {
 .floor-tab:hover { background: #222833; }
 .floor-tab.current { background: #243048; border-color: #3c5a8a; color: #e6e8eb; }
 .floor-id { font-weight: 600; }
-.floor-badge { font-size: 11px; }
+.floor-badge { font-size: 12px; line-height: 1; }
+.floor-state { font-size: 10px; }
+/* 색은 모양·낱말 위에 얹는 세 번째 채널이지 유일한 채널이 아니다. */
+.floor-tab[data-state="running"] .floor-badge { color: #7fd694; }
+.floor-tab[data-state="stalled"] .floor-badge { color: #ff8a8a; }
+.floor-tab[data-state="idle"]    .floor-badge { color: #8b94a3; }
+.floor-tab[data-state="unknown"] .floor-badge { color: #6b7280; }
 .floor-tab[data-state="stalled"] { border-color: #d24b4b; }
 ```
 
