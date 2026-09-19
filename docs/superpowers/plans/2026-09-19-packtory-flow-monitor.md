@@ -1831,6 +1831,10 @@ export default function Map({ scene, values, floorId, selection, onSelect, panTo
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        // 자식들은 팬 드래그 뒤의 합성 click 에 그대로 노출된다(위 moved 설명 참조).
+        // 자식마다 moved 가드를 반복하는 대신 capture 단계에서 한 번에 막는다 —
+        // Task 7 이 추가하는 구간·리프트를 포함해 이후 자식이 자동으로 보호된다.
+        onClickCapture={(e) => { if (moved.current) e.stopPropagation() }}
       >
         {sections.map((s) => {
           const [x, y, w, h] = s.rect
@@ -2240,9 +2244,15 @@ export default function Segments({ scene, values, floorId, bounds, zoomedIn, sel
 
 /* 움직임을 줄이라고 한 사용자에게는 애니메이션을 끈다.
    상태는 색·점선·점 개수가 이미 다 전달하므로 정보가 사라지지 않는다. */
+/* animation: none 을 주면 안 된다 — offset-distance 는 이 애니메이션 말고
+   값의 출처가 없어서, 모든 점이 경로 시작점 하나로 뭉치고 "얼마나 찼나" 라는
+   신호가 통째로 사라진다. 이 미디어쿼리가 지키려던 바로 그 정보다.
+   animation-play-state: paused 는 각 점이 animation-delay 로 정해진 제자리
+   (= 대기열 상의 위치)에서 얼어붙으므로, 정지 구간의 .item 과 동일한
+   메커니즘으로 정보 손실 없이 멈춘다. */
 @media (prefers-reduced-motion: reduce) {
   .item, .segment[data-state="stalled"] .rail, .lift[data-state="stalled"] circle {
-    animation: none !important;
+    animation-play-state: paused !important;
   }
 }
 ```
