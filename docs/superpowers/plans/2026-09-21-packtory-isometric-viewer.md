@@ -1410,11 +1410,16 @@ export function createAndons(bscene: BScene, scene: Scene): Andons {
     const pts = segmentPoints(scene, seg)
     const end = pts[pts.length - 1]
 
-    // 기둥은 그 구간이 닿는 설비보다 높아야 뒤에 서도 보인다
-    const sec = scene.sections.find((s) => s.id === seg.section)
-    const base = sec ? floorElevation(scene, sec.floor) : 0
+    // 기둥은 구간이 실제로 끝나는 층(도착 층)의 설비보다 높아야 뒤에 서도 보인다.
+    // seg.section 을 기준으로 잡으면 리프트가 틀린다 — 리프트는 출발 층 구역에
+    // 등록돼 있다(데모 씨의 lift-1: section "inbound" 는 1F 인데 to.floor 는 2F).
+    // 그러면 기둥이 출발 층 높이로 서서 램프가 도착 층 벨트보다 한참 아래 허공에 뜨다.
+    const base = floorElevation(scene, seg.to.floor)
     const tallest = scene.equipment
-      .filter((e) => e.section === seg.section)
+      .filter((e) => {
+        const s = scene.sections.find((sec) => sec.id === e.section)
+        return s?.floor === seg.to.floor
+      })
       .reduce((m, e) => Math.max(m, equipmentHeight(e)), 0)
     const poleH = Math.max(MIN_POLE, tallest + 1)
 
@@ -1502,6 +1507,10 @@ import { createAndons, type Andons } from "./viewer/andon.ts"
 `andon.ts` 에 덧붙인다:
 
 ```ts
+// EffectLayer(HighlightLayer 의 기반)는 씨 컴포넌트를 사이드이펙트 임포트로
+// 등록해야 동작한다 — Task 6 의 thinInstanceMesh 와 같은 종류의 함정이다.
+// 빠뜨리면 런타임에만 죽고 타입체크·빌드는 통과한다(실측: 화면이 통째로 비었다).
+import "@babylonjs/core/Layers/effectLayerSceneComponent"
 import { HighlightLayer } from "@babylonjs/core/Layers/highlightLayer"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 
