@@ -1171,6 +1171,10 @@ git commit -m "feat: 구간·리프트 지오메트리와 경로 샘플러"
 `web/src/viewer/flow.ts`:
 ```ts
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+// thinInstanceSetBuffer 등은 Mesh 프로토타입에 사이드이펙트로 덯붙는 확장이다.
+// 배럴을 안 거치는 개별 import 에서는 이 모듈을 직접 가져오지 않으면 메서드가
+// 아예 없어 런타임에 죽는다 — 타입체크도 빌드도 통과하고 화면만 비운다.
+import "@babylonjs/core/Meshes/thinInstanceMesh"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
