@@ -323,7 +323,7 @@ test("규칙7: elevation 이 order 순으로 단조 증가하지 않으면 에�
   assert.match(validateScene(s).errors.join("\n"), /elevation/)
 })
 
-test("규칙7: elevation 이 없으면 검사하지 않는다", () => {
+test("규칙7: elevation 이 없어도 기본값이 단조 증가라 통과한다", () => {
   const s = base()
   s.floors = [
     { id: "1F", label: "1층", order: 1 },
@@ -331,6 +331,18 @@ test("규칙7: elevation 이 없으면 검사하지 않는다", () => {
   ]
   // 1F 만 참조하므로 나머지 규칙도 통과해야 한다
   assert.deepEqual(validateScene(s).errors, [])
+})
+
+test("규칙7: 일부 층만 elevation 을 적어 실효 높이가 역전되면 에러", () => {
+  const s = base()
+  // 실효 높이: 1F=10(명시), 2F=6(기본 (2-1)*6), 3F=5(명시) → 감소한다.
+  // 원시 값만 보면 인접 쌍마다 한쪽이 undefined 라 전부 건너뛰어 새어나간다.
+  s.floors = [
+    { id: "1F", label: "1층", order: 1, elevation: 10 },
+    { id: "2F", label: "2층", order: 2 },
+    { id: "3F", label: "3층", order: 3, elevation: 5 },
+  ]
+  assert.match(validateScene(s).errors.join("\n"), /높이/)
 })
 
 test("규칙8: 설비가 위층 바닥을 뚫으면 경고이지 에러가 아니다", () => {
@@ -445,14 +457,20 @@ export function equipmentShape(eq: Equipment): "box" | "cylinder" {
 `hub/src/scene.ts` 의 `validateScene` 에서 규칙 6(미참조 카메라) 바로 앞에 넣는다:
 
 ```ts
-  // 규칙7: elevation 이 있으면 order 순으로 단조 증가해야 한다.
+  // 규칙7: 실효 높이가 order 순으로 단조 증가해야 한다.
   // 어긋나면 위층이 아래층 밑에 그려져 화면이 뒤집힌 것처럼 보인다.
+  //
+  // **원시 elevation 이 아니라 floorElevation() 으로 비교한다.** 원시 값을 읽고
+  // undefined 인 쌍을 건너뛰면, 일부 층만 elevation 을 적은 씬에서 진짜 역전이
+  // 통째로 새어나간다: 1F=10(명시), 2F 없음(기본 6), 3F=5(명시) 면 실효 높이가
+  // 10, 6, 5 로 감소하는데 인접 쌍마다 한쪽이 undefined 라 전부 건너뛴다.
+  // floorElevation 은 언제나 수를 돌려주므로 건너뛸 이유 자체가 없다.
   const byOrder = [...s.floors].sort((a, b) => a.order - b.order)
   for (let i = 1; i < byOrder.length; i++) {
     const lo = byOrder[i - 1], hi = byOrder[i]
-    if (lo.elevation === undefined || hi.elevation === undefined) continue
-    if (hi.elevation <= lo.elevation)
-      errors.push(`층 ${hi.id} 의 elevation(${hi.elevation}) 이 아래층 ${lo.id}(${lo.elevation}) 보다 높지 않다`)
+    const loY = floorElevation(s, lo.id), hiY = floorElevation(s, hi.id)
+    if (hiY <= loY)
+      errors.push(`층 ${hi.id} 의 높이(${hiY}m) 가 아래층 ${lo.id}(${loY}m) 보다 높지 않다`)
   }
 
   // 규칙8: 설비 높이
