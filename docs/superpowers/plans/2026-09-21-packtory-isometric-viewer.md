@@ -95,7 +95,7 @@ web/src/
 //
 //   node tools/shot.mjs http://localhost:8080/ /tmp/shot.png [대기ms]
 //
-import { copyFileSync, existsSync, rmSync, statSync } from "node:fs"
+import { copyFileSync, existsSync, rmSync } from "node:fs"
 import { execFileSync } from "node:child_process"
 
 const CANDIDATES = [
@@ -138,8 +138,6 @@ const written = isWin ? winWsl : out
 
 // 이전 산출물이 남아 있으면 지운다 (고유 이름이라 거의 없지만, out 쪽은 재사용된다)
 rmSync(written, { force: true })
-const startedAt = Date.now()
-
 execFileSync(browser, [
   "--headless=new", "--disable-gpu", "--no-sandbox",
   `--virtual-time-budget=${waitMs}`,
@@ -155,10 +153,10 @@ if (!existsSync(written)) {
   console.error(`(${browser} 이 종료코드 0 으로 끝났지만 산출물이 없다)`)
   process.exit(4)
 }
-if (statSync(written).mtimeMs < startedAt - 1000) {
-  console.error(`이미지가 이번 실행의 것이 아니다 (수정시각이 실행보다 앞선다): ${written}`)
-  process.exit(5)
-}
+// mtime 신선도 검사는 두지 않는다. WSL2 와 Windows 파일시스템 사이에
+// 2~8초 클록 드리프트가 있어 정상 실행이 오탐으로 걸린다(실측). 그리고
+// 필요도 없다 — 파일명이 실행마다 고유하고 실행 전에 지웠으므로, 실행 뒤에
+// 존재한다는 것은 이번 실행이 썼다는 뜻이다. 신선도는 구조로 보장된다.
 
 if (isWin) {
   copyFileSync(written, out)
