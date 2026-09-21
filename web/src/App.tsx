@@ -11,7 +11,9 @@ import { buildStatic } from "./viewer/build.ts"
 import { createFlow, type Flow } from "./viewer/flow.ts"
 import { createAndons, type Andons } from "./viewer/andon.ts"
 import { attachPicking } from "./viewer/pick.ts"
+import { segmentPoints } from "./viewer/coords.ts"
 import Labels from "./Labels.tsx"
+import type { Segment } from "../../shared/types.ts"
 
 export default function App() {
   const { data, error } = useScene()
@@ -30,10 +32,17 @@ export default function App() {
   if (error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {error}</p>
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
 
+  const goTo = (seg: Segment) => {
+    const pts = segmentPoints(data.scene, seg)
+    // 구간 한가운데로 간다. 끝점으로 가면 긴 구간이 화면 가장자리에 걸린다.
+    const mid = pts[Math.floor(pts.length / 2)]
+    camRef.current?.flyTo(mid)
+  }
+
   return (
     <div className="app">
       {!connected && <div className="offline">서버와 끊김 — 재접속 중</div>}
-      <AlertBar scene={data.scene} values={values} onGo={() => {}} />
+      <AlertBar scene={data.scene} values={values} onGo={goTo} />
       <div className="viewer-wrap">
         <Viewer
           scene={data.scene}

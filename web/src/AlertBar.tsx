@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import type { Scene, TagValue } from "../../shared/types.ts"
+import type { Scene, Segment, TagValue } from "../../shared/types.ts"
 import { formatStall, segStallMs, segState } from "./state.ts"
 
 type Props = {
   scene: Scene
   values: Map<string, TagValue>
-  onGo: (floorId: string, x: number, y: number) => void
+  onGo: (seg: Segment) => void
 }
 
 /**
@@ -58,11 +58,7 @@ export default function AlertBar({ scene, values, onGo }: Props) {
           {stalled.map(({ seg, ms }) => {
             const section = scene.sections.find((x) => x.id === seg.section)
             return (
-              <button
-                key={seg.id}
-                className="chip"
-                onClick={() => onGo(seg.from.floor, seg.from.x, seg.from.y)}
-              >
+              <button key={seg.id} className="chip" onClick={() => onGo(seg)}>
                 ⚠ {section?.label ?? seg.section} {seg.label} 정지 {formatStall(ms)}
               </button>
             )
