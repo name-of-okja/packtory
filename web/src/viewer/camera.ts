@@ -74,7 +74,7 @@ export function createCamera(
     const right = camera.getDirection(Vector3.Right())
     const up = camera.getDirection(Vector3.Up())
     // camera.target = X (setter) 는 ArcRotateCamera.setTarget 을 cloneAlphaBetaRadius
-    // 기본값(true)으로 부르는 것과 같다 — 그러면 현재 position 과 새 target 으로
+    // 기본값(false)으로 부르는 것과 같다 — 그러면 현재 position 과 새 target 으로
     // alpha·beta·radius 를 rebuildAnglesAndRadius() 로 다시 계산해 버려 고정해 둔
     // 기울기(BETA)가 드래그할 때마다 조금씩 틀어진다. cloneAlphaBetaRadius=true 를
     // 넘겨 alpha/beta/radius 는 그대로 두고 target 만 옮긴다.
@@ -118,7 +118,7 @@ export function createCamera(
     if (animTarget) {
       const k = Math.min((performance.now() - animTarget.t0) / animTarget.dur, 1)
       const e = ease(k)
-      // camera.target = X (setter) 는 cloneAlphaBetaRadius 기본값(true)으로
+      // camera.target = X (setter) 는 cloneAlphaBetaRadius 기본값(false)으로
       // setTarget 을 불러 현재 position 과 새 target 으로 alpha·beta·radius 를
       // rebuildAnglesAndRadius() 로 다시 계산해 버린다 — 그러면 보간 프레임마다
       // 고정 기울기(BETA)가 조금씩 틀어진다. cloneAlphaBetaRadius=true 로
