@@ -96,10 +96,10 @@ test("규칙7: elevation 이 order 순으로 단조 증가하지 않으면 에�
     { id: "1F", label: "1층", order: 1, elevation: 10 },
     { id: "2F", label: "2층", order: 2, elevation: 4 },
   ]
-  assert.match(validateScene(s).errors.join("\n"), /elevation/)
+  assert.match(validateScene(s).errors.join("\n"), /높이/)
 })
 
-test("규칙7: elevation 이 없으면 검사하지 않는다", () => {
+test("규칙7: elevation 이 없어도 기본값이 단조 증가라 통과한다", () => {
   const s = base()
   s.floors = [
     { id: "1F", label: "1층", order: 1 },
@@ -107,6 +107,18 @@ test("규칙7: elevation 이 없으면 검사하지 않는다", () => {
   ]
   // 1F 만 참조하므로 나머지 규칙도 통과해야 한다
   assert.deepEqual(validateScene(s).errors, [])
+})
+
+test("규칙7: 일부 층만 elevation 을 적어 실효 높이가 역전되면 에러", () => {
+  const s = base()
+  // 실효 높이: 1F=10(명시), 2F=6(기본 (2-1)*6), 3F=5(명시) → 감소한다.
+  // 원시 값만 보면 인접 쌍마다 한쪽이 undefined 라 전부 건너뛰어 새어나간다.
+  s.floors = [
+    { id: "1F", label: "1층", order: 1, elevation: 10 },
+    { id: "2F", label: "2층", order: 2 },
+    { id: "3F", label: "3층", order: 3, elevation: 5 },
+  ]
+  assert.match(validateScene(s).errors.join("\n"), /높이/)
 })
 
 test("규칙8: 설비가 위층 바닥을 뚫으면 경고이지 에러가 아니다", () => {

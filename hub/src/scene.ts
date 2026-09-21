@@ -75,14 +75,20 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
           errors.push(`섹션 ${on[i].id} 와 ${on[j].id} 가 ${f.id} 에서 겹친다`)
   }
 
-  // 규칙7: elevation 이 있으면 order 순으로 단조 증가해야 한다.
+  // 규칙7: 실효 높이가 order 순으로 단조 증가해야 한다.
   // 어긋나면 위층이 아래층 밑에 그려져 화면이 뒤집힌 것처럼 보인다.
+  //
+  // **원시 elevation 이 아니라 floorElevation() 으로 비교한다.** 원시 값을 읽고
+  // undefined 인 쌍을 건너뛰면, 일부 층만 elevation 을 적은 씬에서 진짜 역전이
+  // 통째로 새어나간다: 1F=10(명시), 2F 없음(기본 6), 3F=5(명시) 면 실효 높이가
+  // 10, 6, 5 로 감소하는데 인접 쌍마다 한쪽이 undefined 라 전부 건너뛴다.
+  // floorElevation 은 언제나 수를 돌려주므로 건너뛸 이유 자체가 없다.
   const byOrder = [...s.floors].sort((a, b) => a.order - b.order)
   for (let i = 1; i < byOrder.length; i++) {
     const lo = byOrder[i - 1], hi = byOrder[i]
-    if (lo.elevation === undefined || hi.elevation === undefined) continue
-    if (hi.elevation <= lo.elevation)
-      errors.push(`층 ${hi.id} 의 elevation(${hi.elevation}) 이 아래층 ${lo.id}(${lo.elevation}) 보다 높지 않다`)
+    const loY = floorElevation(s, lo.id), hiY = floorElevation(s, hi.id)
+    if (hiY <= loY)
+      errors.push(`층 ${hi.id} 의 높이(${hiY}m) 가 아래층 ${lo.id}(${loY}m) 보다 높지 않다`)
   }
 
   // 규칙8: 설비 높이
