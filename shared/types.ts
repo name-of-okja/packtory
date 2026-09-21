@@ -9,7 +9,13 @@ export type WsMessage =
 
 export type SegState = "running" | "stalled" | "idle" | "unknown"
 
-export type Floor = { id: string; label: string; order: number }
+export type Floor = {
+  id: string
+  label: string
+  order: number
+  /** 이 층 바닥의 높이(미터). 없으면 (order - 1) × 6. 층 겹침의 유일한 손잡이다 */
+  elevation?: number
+}
 
 /** rect 는 [x, y, w, h]. 배경을 칠하고 라벨을 놓는 용도일 뿐 소속 판정에 쓰지 않는다. */
 export type Section = {
@@ -36,6 +42,10 @@ export type Equipment = {
   pos: [number, number]
   /** [w, h] */
   size: [number, number]
+  /** 설비 높이(미터). 없으면 2 */
+  height?: number
+  /** 없으면 "box" */
+  shape?: "box" | "cylinder"
   tags: EquipmentTag[]
 }
 
@@ -59,7 +69,7 @@ export type Segment = {
 export type Camera = { id: string; label: string; stream: string }
 
 export type Scene = {
-  version: 2
+  version: 3
   name: string
   stallSec: number
   floors: Floor[]
@@ -74,4 +84,19 @@ export type SceneResponse = { scene: Scene; go2rtcBase: string }
 /** 구간이 리프트인가 */
 export function isLift(seg: Segment): boolean {
   return seg.from.floor !== seg.to.floor
+}
+
+/** 층 높이 기본값. elevation 이 없으면 층당 6m 로 쌓는다 */
+export function floorElevation(scene: Scene, floorId: string): number {
+  const f = scene.floors.find((x) => x.id === floorId)
+  if (!f) return 0
+  return f.elevation ?? (f.order - 1) * 6
+}
+
+export function equipmentHeight(eq: Equipment): number {
+  return eq.height ?? 2
+}
+
+export function equipmentShape(eq: Equipment): "box" | "cylinder" {
+  return eq.shape ?? "box"
 }

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import type { Scene, Section } from "../../shared/types.ts"
+import { equipmentHeight, floorElevation } from "../../shared/types.ts"
 
 type Rect = [number, number, number, number]
 
@@ -74,6 +75,33 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
           errors.push(`섹션 ${on[i].id} 와 ${on[j].id} 가 ${f.id} 에서 겹친다`)
   }
 
+  // 규칙7: elevation 이 있으면 order 순으로 단조 증가해야 한다.
+  // 어긋나면 위층이 아래층 밑에 그려져 화면이 뒤집힌 것처럼 보인다.
+  const byOrder = [...s.floors].sort((a, b) => a.order - b.order)
+  for (let i = 1; i < byOrder.length; i++) {
+    const lo = byOrder[i - 1], hi = byOrder[i]
+    if (lo.elevation === undefined || hi.elevation === undefined) continue
+    if (hi.elevation <= lo.elevation)
+      errors.push(`층 ${hi.id} 의 elevation(${hi.elevation}) 이 아래층 ${lo.id}(${lo.elevation}) 보다 높지 않다`)
+  }
+
+  // 규칙8: 설비 높이
+  for (const e of s.equipment) {
+    if (e.height !== undefined && e.height <= 0) {
+      errors.push(`장비 ${e.id}: height 는 양수여야 한다 (받음: ${e.height})`)
+      continue
+    }
+    const sec = secById.get(e.section)
+    if (!sec) continue
+    const base = floorElevation(s, sec.floor)
+    const top = base + equipmentHeight(e)
+    // 바로 위층이 있으면 그 바닥을 뚫는지 본다 — 경고다. 현장에 층고보다 높은
+    // 설비(탱크가 두 층을 관통하는 등)가 실제로 있으므로 막지는 않는다.
+    const above = byOrder.find((f) => floorElevation(s, f.id) > base)
+    if (above && top > floorElevation(s, above.id))
+      warnings.push(`장비 ${e.id} 가 위층 ${above.id} 바닥을 뚫는다 (윗면 ${top}m > ${floorElevation(s, above.id)}m)`)
+  }
+
   // 규칙6: 미참조 카메라 (경고)
   const used = new Set(s.sections.flatMap((x) => x.cameras))
   for (const c of s.cameras)
@@ -84,7 +112,7 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
 
 export function loadScene(path: string): Scene {
   const s = JSON.parse(readFileSync(path, "utf8")) as Scene
-  if (s.version !== 2) throw new Error(`씬 version 2 만 지원한다 (받음: ${s.version})`)
+  if (s.version !== 3) throw new Error(`씬 version 3 만 지원한다 (받음: ${s.version})`)
   const { errors, warnings } = validateScene(s)
   for (const w of warnings) console.warn(`씬 경고: ${w}`)
   if (errors.length) throw new Error(`씬 검증 실패:\n  ${errors.join("\n  ")}`)

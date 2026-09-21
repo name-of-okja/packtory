@@ -1,12 +1,13 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { validateScene, loadScene } from "../src/scene.ts"
+import { floorElevation, equipmentHeight, equipmentShape } from "../../shared/types.ts"
 import type { Scene } from "../../shared/types.ts"
 
 /** 검증을 통과하는 최소 씬. 각 테스트가 여기서 한 군데씩 망가뜨린다. */
 function base(): Scene {
   return {
-    version: 2,
+    version: 3,
     name: "t",
     stallSec: 10,
     floors: [{ id: "1F", label: "1층", order: 1 }],
@@ -85,13 +86,64 @@ test("구간 좌표는 섹션 rect를 벗어나도 된다", () => {
 
 test("실제 데모 씬이 검증을 통과한다", () => {
   const scene = loadScene(new URL("../../scene.json", import.meta.url).pathname)
-  assert.equal(scene.version, 2)
+  assert.equal(scene.version, 3)
   assert.equal(scene.segments.length, 4)
 })
 
-test("version이 2가 아니면 로드가 실패한다", () => {
+test("규칙7: elevation 이 order 순으로 단조 증가하지 않으면 에러", () => {
+  const s = base()
+  s.floors = [
+    { id: "1F", label: "1층", order: 1, elevation: 10 },
+    { id: "2F", label: "2층", order: 2, elevation: 4 },
+  ]
+  assert.match(validateScene(s).errors.join("\n"), /elevation/)
+})
+
+test("규칙7: elevation 이 없으면 검사하지 않는다", () => {
+  const s = base()
+  s.floors = [
+    { id: "1F", label: "1층", order: 1 },
+    { id: "2F", label: "2층", order: 2 },
+  ]
+  // 1F 만 참조하므로 나머지 규칙도 통과해야 한다
+  assert.deepEqual(validateScene(s).errors, [])
+})
+
+test("규칙8: 설비가 위층 바닥을 뚫으면 경고이지 에러가 아니다", () => {
+  const s = base()
+  s.floors = [
+    { id: "1F", label: "1층", order: 1, elevation: 0 },
+    { id: "9F", label: "윗층", order: 2, elevation: 3 },
+  ]
+  s.equipment[0].height = 5 // 3m 위층 바닥을 뚫는다
+  const { errors, warnings } = validateScene(s)
+  assert.deepEqual(errors, [])
+  assert.match(warnings.join("\n"), /위층/)
+})
+
+test("규칙8: height 가 0 이하면 에러", () => {
+  const s = base()
+  s.equipment[0].height = 0
+  assert.match(validateScene(s).errors.join("\n"), /height/)
+})
+
+test("version 이 3 이 아니면 로드가 실패한다", () => {
   assert.throws(
     () => loadScene(new URL("./fixtures/v1.json", import.meta.url).pathname),
-    /version 2/,
+    /version 3/,
   )
+})
+
+test("기본값 헬퍼", () => {
+  const s = base()
+  s.floors = [
+    { id: "1F", label: "1층", order: 1 },
+    { id: "2F", label: "2층", order: 2 },
+  ]
+  // elevation 이 없으면 (order - 1) × 6
+  assert.equal(floorElevation(s, "1F"), 0)
+  assert.equal(floorElevation(s, "2F"), 6)
+  // height 가 없으면 2, shape 가 없으면 box
+  assert.equal(equipmentHeight(s.equipment[0]), 2)
+  assert.equal(equipmentShape(s.equipment[0]), "box")
 })

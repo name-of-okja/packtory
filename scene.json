@@ -1,10 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "name": "데모 라인",
   "stallSec": 10,
   "floors": [
-    { "id": "1F", "label": "1층", "order": 1 },
-    { "id": "2F", "label": "2층", "order": 2 }
+    { "id": "1F", "label": "1층", "order": 1, "elevation": 0 },
+    { "id": "2F", "label": "2층", "order": 2, "elevation": 6 }
   ],
   "sections": [
     { "id": "inbound", "label": "입고부", "floor": "1F",
@@ -16,17 +16,17 @@
   ],
   "equipment": [
     { "id": "loader-1", "label": "적재기 1", "section": "inbound",
-      "pos": [6, 12], "size": [4, 3], "tags": [] },
+      "pos": [6, 12], "size": [4, 3], "height": 2.2, "shape": "box", "tags": [] },
     { "id": "filler-1", "label": "충전기 1", "section": "filling",
-      "pos": [6, 12], "size": [4, 3],
+      "pos": [6, 12], "size": [4, 3], "height": 3.2, "shape": "cylinder",
       "tags": [
         { "key": "speed", "label": "속도", "unit": "bpm", "warn": 250 },
         { "key": "temp", "label": "온도", "unit": "°C", "warn": 80 }
       ] },
     { "id": "capper-1", "label": "캡퍼 1", "section": "filling",
-      "pos": [18, 12], "size": [3, 3], "tags": [] },
+      "pos": [18, 12], "size": [3, 3], "height": 2.6, "shape": "box", "tags": [] },
     { "id": "packer-1", "label": "포장기 1", "section": "packing",
-      "pos": [30, 12], "size": [4, 3], "tags": [] }
+      "pos": [30, 12], "size": [4, 3], "height": 2.0, "shape": "box", "tags": [] }
   ],
   "segments": [
     { "id": "conv-1", "label": "입고 이송", "section": "inbound",
