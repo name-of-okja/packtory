@@ -34,7 +34,8 @@ export function sceneBounds(scene: Scene): { min: Vector3; max: Vector3 } {
 export const BELT_Y = 0.8
 
 /**
- * 구간의 월드 점열. 리프트는 두 층을 잇는 수직 선분이고,
+ * 구간의 월드 점열. 리프트는 두 층을 잇는 선분이고 (데모 씬의 `lift-1` 처럼
+ * 수평 이동을 겸하면 사선이 된다 — 반드시 수직인 건 아니다),
  * 평면 구간은 from → via… → to 의 폴리라인이다.
  */
 export function segmentPoints(scene: Scene, seg: Segment): Vector3[] {
@@ -51,9 +52,11 @@ export function segmentPoints(scene: Scene, seg: Segment): Vector3[] {
 }
 
 /**
- * 폴리라인 위를 0..1 로 훑는다. 물건 배치와 신호등 위치에 쓴다.
- * t 는 [0, 1] 로 클램프한다 — t=0 이 정확히 시작점, t=1 이 정확히 끝점이어야
- * Task 7 이 종점에 신호등을 놓을 때 어긋나지 않는다.
+ * 폴리라인 위를 0..1 로 훑는다. 물건 배치에 쓴다.
+ * t 는 순환값이다 — Task 6 이 `phase - i * gap` 으로 물건마다 위상을 어긋나게
+ * 놓기 때문에 t 가 일상적으로 음수가 된다. `((t % 1) + 1) % 1` 로 [0,1) 에
+ * 되감아서, 경로 끝을 넘어간 물건이 시작으로 이어지게 한다. 클램프로 바꾸면
+ * t<0 인 물건이 전부 시작점 한 점에 쌓인다.
  */
 export function pathSampler(points: Vector3[]): { length: number; at(t: number): Vector3 } {
   const segLen: number[] = []
@@ -66,7 +69,7 @@ export function pathSampler(points: Vector3[]): { length: number; at(t: number):
   return {
     length: Math.max(total, 0.001),
     at(t: number) {
-      const want = Math.min(Math.max(t, 0), 1) * total
+      const want = ((t % 1) + 1) % 1 * total
       let acc = 0
       for (let i = 0; i < segLen.length; i++) {
         if (acc + segLen[i] >= want) {
