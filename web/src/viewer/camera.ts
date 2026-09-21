@@ -14,6 +14,9 @@ const BETA = 0.9553
 const ALPHAS = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4]
 /** 드래그가 이보다 움직였으면 클릭이 아니라 팬이다 (CSS 픽셀) */
 export const DRAG_SLOP = 4
+/** 칩을 눌러 날아갈 때의 줌. Labels 의 SHOW_BELOW(60)보다 확실히 아래여야
+ *  도착해서 이름과 정지 시간을 읽을 수 있다 */
+const FLY_ZOOM = 30
 
 export type IsoCamera = {
   camera: ArcRotateCamera
@@ -91,14 +94,21 @@ export function createCamera(
 
   // ── 보간 ────────────────────────────────────────────────
   let anim: { from: number; to: number; t0: number; dur: number; kind: "alpha" } |
-            { from: Vector3; to: Vector3; t0: number; dur: number; kind: "target" } | null = null
+            { from: Vector3; to: Vector3; zoomFrom?: number; zoomTo?: number; t0: number; dur: number; kind: "target" } | null = null
 
   const tick = () => {
     if (!anim) return
     const k = Math.min((performance.now() - anim.t0) / anim.dur, 1)
     const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2 // easeInOutQuad
-    if (anim.kind === "alpha") camera.alpha = anim.from + (anim.to - anim.from) * e
-    else camera.target = Vector3.Lerp(anim.from, anim.to, e)
+    if (anim.kind === "alpha") {
+      camera.alpha = anim.from + (anim.to - anim.from) * e
+    } else {
+      camera.target = Vector3.Lerp(anim.from, anim.to, e)
+      if (anim.zoomTo !== undefined && anim.zoomFrom !== undefined) {
+        zoom = anim.zoomFrom + (anim.zoomTo - anim.zoomFrom) * e
+        applyZoom()
+      }
+    }
     if (k >= 1) anim = null
   }
   scene.onBeforeRenderObservable.add(tick)
@@ -115,12 +125,24 @@ export function createCamera(
       anim = { kind: "alpha", from, to, t0: performance.now(), dur: 200 }
     },
     home() {
-      zoom = fit
-      applyZoom()
-      anim = { kind: "target", from: camera.target.clone(), to: center, t0: performance.now(), dur: 400 }
+      // zoom·target 을 한 애니메이션에 실어 한 동작으로 돌아가게 한다.
+      // 예전엔 zoom 을 즉시 바꾸고 target 만 보간해 2단으로 움직였다.
+      anim = {
+        kind: "target", from: camera.target.clone(), to: center,
+        zoomFrom: zoom, zoomTo: fit,
+        t0: performance.now(), dur: 400,
+      }
     },
     flyTo(target) {
-      anim = { kind: "target", from: camera.target.clone(), to: target, t0: performance.now(), dur: 400 }
+      // 스펙은 팬+줌이다. 팬만 하면 넓게 본 상태에서 눌렀을 때 그 구간이
+      // 가운데로 오기만 하고 라벨 문턱(Labels 의 SHOW_BELOW) 위라 이름도
+      // 정지 시간도 안 읽힌다 — 칩을 누르는 이유가 사라진다.
+      // 이미 그보다 가까이 보고 있으면 물러나지 않는다.
+      anim = {
+        kind: "target", from: camera.target.clone(), to: target,
+        zoomFrom: zoom, zoomTo: Math.min(zoom, FLY_ZOOM),
+        t0: performance.now(), dur: 400,
+      }
     },
     didPan: () => moved,
     dispose() {
