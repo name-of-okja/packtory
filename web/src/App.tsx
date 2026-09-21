@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useScene } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import AlertBar from "./AlertBar.tsx"
@@ -7,12 +7,16 @@ import Viewer from "./viewer/Viewer.tsx"
 import type { IsoCamera } from "./viewer/camera.ts"
 import type { Selection } from "./state.ts"
 import { buildStatic } from "./viewer/build.ts"
+import { createFlow, type Flow } from "./viewer/flow.ts"
 
 export default function App() {
   const { data, error } = useScene()
   const { values, connected } = useValues()
   const [selection, setSelection] = useState<Selection>(null)
   const camRef = useRef<IsoCamera | null>(null)
+  const flowRef = useRef<Flow | null>(null)
+
+  useEffect(() => { flowRef.current?.setValues(values) }, [values])
 
   if (error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {error}</p>
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
@@ -27,7 +31,12 @@ export default function App() {
           onReady={({ bscene, cam }) => {
             camRef.current = cam
             const statics = buildStatic(bscene, data.scene)
-            return () => { statics.dispose(); camRef.current = null }
+            const flow = createFlow(bscene, data.scene)
+            flowRef.current = flow
+            return () => {
+              flow.dispose(); statics.dispose()
+              flowRef.current = null; camRef.current = null
+            }
           }}
         />
         <div className="viewer-controls">
