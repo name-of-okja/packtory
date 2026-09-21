@@ -8,6 +8,7 @@ import type { IsoCamera } from "./viewer/camera.ts"
 import type { Selection } from "./state.ts"
 import { buildStatic } from "./viewer/build.ts"
 import { createFlow, type Flow } from "./viewer/flow.ts"
+import { createAndons, type Andons } from "./viewer/andon.ts"
 
 export default function App() {
   const { data, error } = useScene()
@@ -15,8 +16,12 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>(null)
   const camRef = useRef<IsoCamera | null>(null)
   const flowRef = useRef<Flow | null>(null)
+  const andonRef = useRef<Andons | null>(null)
 
-  useEffect(() => { flowRef.current?.setValues(values) }, [values])
+  useEffect(() => {
+    flowRef.current?.setValues(values)
+    andonRef.current?.setValues(values)
+  }, [values])
 
   if (error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {error}</p>
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
@@ -32,10 +37,12 @@ export default function App() {
             camRef.current = cam
             const statics = buildStatic(bscene, data.scene)
             const flow = createFlow(bscene, data.scene)
+            const andons = createAndons(bscene, data.scene, statics.equipmentById)
             flowRef.current = flow
+            andonRef.current = andons
             return () => {
-              flow.dispose(); statics.dispose()
-              flowRef.current = null; camRef.current = null
+              flow.dispose(); andons.dispose(); statics.dispose()
+              flowRef.current = null; andonRef.current = null; camRef.current = null
             }
           }}
         />
