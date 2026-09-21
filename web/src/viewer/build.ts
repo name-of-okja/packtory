@@ -1,12 +1,13 @@
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
+import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene } from "../../../shared/types.ts"
 import { equipmentHeight, equipmentShape, floorElevation } from "../../../shared/types.ts"
-import { toBabylon } from "./coords.ts"
+import { segmentPoints, toBabylon } from "./coords.ts"
 
 export type MeshKind = "section" | "equipment" | "segment" | "andon"
 export type MeshMeta = { kind: MeshKind; id: string }
@@ -14,6 +15,7 @@ export type MeshMeta = { kind: MeshKind; id: string }
 export type StaticMeshes = {
   dispose(): void
   equipmentById: Map<string, AbstractMesh>
+  segmentById: Map<string, AbstractMesh>
 }
 
 /** 바닥판 두께 */
@@ -65,12 +67,36 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
     equipmentById.set(e.id, mesh)
   }
 
+  // ── 구간 (벨트) ─────────────────────────────────────────
+  // 상태색은 Task 7 의 신호등이 지고, 벨트 자체는 중립색이다. 벨트에까지
+  // 색을 칠하면 카메라 각도에 따라 안 보이는 면이 생겨 신호가 흔들린다.
+  const beltMat = new StandardMaterial("belt", bscene)
+  beltMat.diffuseColor = new Color3(0.22, 0.25, 0.3)
+  beltMat.specularColor = Color3.Black()
+
+  const segmentById = new Map<string, AbstractMesh>()
+  for (const seg of scene.segments) {
+    const pts = segmentPoints(scene, seg)
+    // 폴리라인을 튜브로 만든다. 꺾인 구간도 한 메시로 처리된다.
+    const tube = CreateTube(
+      `seg:${seg.id}`,
+      { path: pts, radius: 0.22, tessellation: 8, cap: 2 },
+      bscene,
+    )
+    tube.material = beltMat
+    tube.metadata = { kind: "segment", id: seg.id } satisfies MeshMeta
+    created.push(tube)
+    segmentById.set(seg.id, tube)
+  }
+
   return {
     equipmentById,
+    segmentById,
     dispose() {
       for (const m of created) m.dispose()
       slabMat.dispose()
       eqMat.dispose()
+      beltMat.dispose()
     },
   }
 }

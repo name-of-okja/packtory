@@ -1,6 +1,6 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
-import type { Scene } from "../../../shared/types.ts"
-import { equipmentHeight, floorElevation } from "../../../shared/types.ts"
+import type { Scene, Segment } from "../../../shared/types.ts"
+import { equipmentHeight, floorElevation, isLift } from "../../../shared/types.ts"
 
 /**
  * 씬 좌표는 평면도 기준으로 X 오른쪽, Y 위쪽이다. Babylon 은 Y 가 높이이므로
@@ -28,4 +28,54 @@ export function sceneBounds(scene: Scene): { min: Vector3; max: Vector3 } {
   }
   if (!Number.isFinite(minX)) return { min: new Vector3(0, 0, 0), max: new Vector3(40, 6, 25) }
   return { min: new Vector3(minX, 0, minZ), max: new Vector3(maxX, maxY, maxZ) }
+}
+
+/** 컨베이어 벨트면 높이. 바닥에 붙어 있으면 물건이 바닥을 미끄러지는 것처럼 보인다 */
+export const BELT_Y = 0.8
+
+/**
+ * 구간의 월드 점열. 리프트는 두 층을 잇는 수직 선분이고,
+ * 평면 구간은 from → via… → to 의 폴리라인이다.
+ */
+export function segmentPoints(scene: Scene, seg: Segment): Vector3[] {
+  const fromY = floorElevation(scene, seg.from.floor) + BELT_Y
+  const toY = floorElevation(scene, seg.to.floor) + BELT_Y
+  if (isLift(seg)) {
+    return [toBabylon(seg.from.x, seg.from.y, fromY), toBabylon(seg.to.x, seg.to.y, toY)]
+  }
+  return [
+    toBabylon(seg.from.x, seg.from.y, fromY),
+    ...(seg.via ?? []).map(([x, y]) => toBabylon(x, y, fromY)),
+    toBabylon(seg.to.x, seg.to.y, toY),
+  ]
+}
+
+/**
+ * 폴리라인 위를 0..1 로 훑는다. 물건 배치와 신호등 위치에 쓴다.
+ * t 는 [0, 1] 로 클램프한다 — t=0 이 정확히 시작점, t=1 이 정확히 끝점이어야
+ * Task 7 이 종점에 신호등을 놓을 때 어긋나지 않는다.
+ */
+export function pathSampler(points: Vector3[]): { length: number; at(t: number): Vector3 } {
+  const segLen: number[] = []
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    const d = Vector3.Distance(points[i - 1], points[i])
+    segLen.push(d)
+    total += d
+  }
+  return {
+    length: Math.max(total, 0.001),
+    at(t: number) {
+      const want = Math.min(Math.max(t, 0), 1) * total
+      let acc = 0
+      for (let i = 0; i < segLen.length; i++) {
+        if (acc + segLen[i] >= want) {
+          const k = segLen[i] === 0 ? 0 : (want - acc) / segLen[i]
+          return Vector3.Lerp(points[i], points[i + 1], k)
+        }
+        acc += segLen[i]
+      }
+      return points[points.length - 1].clone()
+    },
+  }
 }
