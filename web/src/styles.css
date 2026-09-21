@@ -66,3 +66,16 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .rows div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222833; }
 .rows dt { color: #8b94a3; margin: 0; }
 .rows dd { margin: 0; }
+
+/* ── HTML 오버레이 라벨 ───────────────────────────────
+   left/top 이 아니라 transform 으로만 옮긴다 — 매 프레임 값이 바뀌므로
+   left/top 을 쓰면 매번 레이아웃(리플로우)이 강제된다. */
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.labels span {
+  position: absolute; left: 0; top: 0;
+  white-space: nowrap; text-shadow: 0 1px 3px #000;
+}
+.lbl-eq   { font-size: 12px; color: #aeb6c2; }
+.lbl-seg  { font-size: 11px; color: #8b94a3; }
+.lbl-over { font-size: 13px; color: #e6e8eb; font-weight: 600; }
+.lbl-stall{ font-size: 13px; color: #ff8a8a; font-weight: 600; }
