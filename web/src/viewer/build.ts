@@ -1,7 +1,7 @@
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder"
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene } from "../../../shared/types.ts"
@@ -34,7 +34,7 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
   for (const sec of scene.sections) {
     const [x, y, w, h] = sec.rect
     const elev = floorElevation(scene, sec.floor)
-    const slab = MeshBuilder.CreateBox(`sec:${sec.id}`, { width: w, height: SLAB, depth: h }, bscene)
+    const slab = CreateBox(`sec:${sec.id}`, { width: w, height: SLAB, depth: h }, bscene)
     slab.position = toBabylon(x + w / 2, y + h / 2, elev - SLAB / 2)
     slab.material = slabMat
     slab.metadata = { kind: "section", id: sec.id } satisfies MeshMeta
@@ -54,8 +54,8 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
     const [w, d] = e.size
 
     const mesh = equipmentShape(e) === "cylinder"
-      ? MeshBuilder.CreateCylinder(`eq:${e.id}`, { diameter: Math.min(w, d), height: ht, tessellation: 24 }, bscene)
-      : MeshBuilder.CreateBox(`eq:${e.id}`, { width: w, height: ht, depth: d }, bscene)
+      ? CreateCylinder(`eq:${e.id}`, { diameter: Math.min(w, d), height: ht, tessellation: 24 }, bscene)
+      : CreateBox(`eq:${e.id}`, { width: w, height: ht, depth: d }, bscene)
 
     // Babylon 의 상자·원통은 원점이 중심이므로 높이의 절반만큼 올린다
     mesh.position = toBabylon(e.pos[0], e.pos[1], elev + ht / 2)
