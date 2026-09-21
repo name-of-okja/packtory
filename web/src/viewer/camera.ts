@@ -73,9 +73,15 @@ export function createCamera(
     // 화면 오른쪽·위 방향을 월드 벡터로 바꿔 그만큼 target 을 민다
     const right = camera.getDirection(Vector3.Right())
     const up = camera.getDirection(Vector3.Up())
-    camera.target = drag.target
-      .subtract(right.scale(px * zoom * aspect))
-      .subtract(up.scale(-py * zoom))
+    // camera.target = X (setter) 는 ArcRotateCamera.setTarget 을 cloneAlphaBetaRadius
+    // 기본값(true)으로 부르는 것과 같다 — 그러면 현재 position 과 새 target 으로
+    // alpha·beta·radius 를 rebuildAnglesAndRadius() 로 다시 계산해 버려 고정해 둔
+    // 기울기(BETA)가 드래그할 때마다 조금씩 틀어진다. cloneAlphaBetaRadius=true 를
+    // 넘겨 alpha/beta/radius 는 그대로 두고 target 만 옮긴다.
+    camera.setTarget(
+      drag.target.subtract(right.scale(px * zoom * aspect)).subtract(up.scale(-py * zoom)),
+      false, false, true,
+    )
   }
   const onUp = () => { drag = null }
   const onWheel = (e: WheelEvent) => {
@@ -93,23 +99,35 @@ export function createCamera(
   window.addEventListener("resize", onResize)
 
   // ── 보간 ────────────────────────────────────────────────
-  let anim: { from: number; to: number; t0: number; dur: number; kind: "alpha" } |
-            { from: Vector3; to: Vector3; zoomFrom?: number; zoomTo?: number; t0: number; dur: number; kind: "target" } | null = null
+  // alpha 회전과 target(팬+줌) 보간을 슬롯 두 개로 나눈다. 슬롯이 하나면 회전
+  // 보간 도중 칩·home 을 눌렀을 때(또는 그 반대 순서)로 서로를 덮어써, 도는
+  // 애니메이션이 중간값에서 버려지고 방위각이 45°/135°/225°/315° 가 아닌
+  // 자리에 영원히 멈춘다. 두 슬롯은 서로 안 건드리므로 동시에 진행돼도(도는
+  // 동시에 날아가도) 맞는 동작이다.
+  const ease = (k: number) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2) // easeInOutQuad
+
+  let animAlpha: { from: number; to: number; t0: number; dur: number } | null = null
+  let animTarget: { from: Vector3; to: Vector3; zoomFrom: number; zoomTo: number; t0: number; dur: number } | null = null
 
   const tick = () => {
-    if (!anim) return
-    const k = Math.min((performance.now() - anim.t0) / anim.dur, 1)
-    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2 // easeInOutQuad
-    if (anim.kind === "alpha") {
-      camera.alpha = anim.from + (anim.to - anim.from) * e
-    } else {
-      camera.target = Vector3.Lerp(anim.from, anim.to, e)
-      if (anim.zoomTo !== undefined && anim.zoomFrom !== undefined) {
-        zoom = anim.zoomFrom + (anim.zoomTo - anim.zoomFrom) * e
-        applyZoom()
-      }
+    if (animAlpha) {
+      const k = Math.min((performance.now() - animAlpha.t0) / animAlpha.dur, 1)
+      camera.alpha = animAlpha.from + (animAlpha.to - animAlpha.from) * ease(k)
+      if (k >= 1) animAlpha = null
     }
-    if (k >= 1) anim = null
+    if (animTarget) {
+      const k = Math.min((performance.now() - animTarget.t0) / animTarget.dur, 1)
+      const e = ease(k)
+      // camera.target = X (setter) 는 cloneAlphaBetaRadius 기본값(true)으로
+      // setTarget 을 불러 현재 position 과 새 target 으로 alpha·beta·radius 를
+      // rebuildAnglesAndRadius() 로 다시 계산해 버린다 — 그러면 보간 프레임마다
+      // 고정 기울기(BETA)가 조금씩 틀어진다. cloneAlphaBetaRadius=true 로
+      // alpha/beta/radius 는 그대로 두고 target 만 옮긴다.
+      camera.setTarget(Vector3.Lerp(animTarget.from, animTarget.to, e), false, false, true)
+      zoom = animTarget.zoomFrom + (animTarget.zoomTo - animTarget.zoomFrom) * e
+      applyZoom()
+      if (k >= 1) animTarget = null
+    }
   }
   scene.onBeforeRenderObservable.add(tick)
 
@@ -122,13 +140,13 @@ export function createCamera(
       let to = ALPHAS[alphaIdx]
       while (to - from > Math.PI) to -= 2 * Math.PI
       while (from - to > Math.PI) to += 2 * Math.PI
-      anim = { kind: "alpha", from, to, t0: performance.now(), dur: 200 }
+      animAlpha = { from, to, t0: performance.now(), dur: 200 }
     },
     home() {
       // zoom·target 을 한 애니메이션에 실어 한 동작으로 돌아가게 한다.
       // 예전엔 zoom 을 즉시 바꾸고 target 만 보간해 2단으로 움직였다.
-      anim = {
-        kind: "target", from: camera.target.clone(), to: center,
+      animTarget = {
+        from: camera.target.clone(), to: center,
         zoomFrom: zoom, zoomTo: fit,
         t0: performance.now(), dur: 400,
       }
@@ -138,8 +156,8 @@ export function createCamera(
       // 가운데로 오기만 하고 라벨 문턱(Labels 의 SHOW_BELOW) 위라 이름도
       // 정지 시간도 안 읽힌다 — 칩을 누르는 이유가 사라진다.
       // 이미 그보다 가까이 보고 있으면 물러나지 않는다.
-      anim = {
-        kind: "target", from: camera.target.clone(), to: target,
+      animTarget = {
+        from: camera.target.clone(), to: target,
         zoomFrom: zoom, zoomTo: Math.min(zoom, FLY_ZOOM),
         t0: performance.now(), dur: 400,
       }
