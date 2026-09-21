@@ -47,6 +47,19 @@ cd ../hub && npm run serve             # http://localhost:8080
 
 환경 변수: `PORT`, `SCENE`, `GO2RTC_BASE`, `WEB_DIR`.
 
+## 번들 크기
+
+`npm run build` 기준 초기 로드 gzip: 약 **312.8KB**(`index-*.js` 311.66KB +
+`index-*.css` 1.12KB, 재측정 시 해시는 바뀌어도 수치는 비슷하다). 목표는
+gzip **350KB 이하** — 처음엔 250KB 로 잡았으나 그건 측정 전 추정치였고,
+실측해보니 Babylon core + React 만으로 이미 250KB였다. 게이트가 아니라
+목표이며, 쓸모는 배럴 import 가 새어들었을 때(수십 KB 단위로 튄다)와
+정당한 기능 추가로 늘어난 것을 구분하는 데 있다.
+
+Babylon 셰이더 폴백 청크(`default.vertex-*`, `default.fragment-*`,
+`kernelBlur*`, `glowMap*` 등)는 위 수치에 **안 들어간다** — 별도 청크로
+빌드되어 필요할 때만 로드된다.
+
 ## 테스트
 
 ```bash

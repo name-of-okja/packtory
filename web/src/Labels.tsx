@@ -3,7 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Scene, TagValue } from "../../shared/types.ts"
 import { equipmentHeight, floorElevation } from "../../shared/types.ts"
 import { segState, segStallMs, segWip, formatStall } from "./state.ts"
-import { toBabylon, segmentPoints } from "./viewer/coords.ts"
+import { toBabylon, segmentPoints, pathSampler } from "./viewer/coords.ts"
 import { projectToScreen } from "./viewer/project.ts"
 import type { ViewerCtx } from "./viewer/Viewer.tsx"
 
@@ -39,7 +39,11 @@ export default function Labels({ ctx, scene, values }: {
 
       for (const seg of scene.segments) {
         const pts = segmentPoints(scene, seg)
-        const mid = pts[Math.floor(pts.length / 2)]
+        // pts[Math.floor(pts.length / 2)] 는 중점이 아니다 — via 없는 2점
+        // 직선 구간은 length=2, floor(1)=1 로 끝점을 고른다. 끝점은 신호등이
+        // 서 있는 자리라 라벨이 바로 옆 설비 라벨과 겹친다. 호 길이 기준
+        // 중점을 써야 한다.
+        const mid = pathSampler(pts).at(0.5)
         const st = segState(seg.id, values)
         const wip = segWip(seg.id, values)
         const cap = seg.capacity ?? 20

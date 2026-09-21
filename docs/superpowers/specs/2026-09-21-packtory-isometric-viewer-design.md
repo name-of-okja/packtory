@@ -243,6 +243,7 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera"
 ```
 
 번들 목표는 gzip **250KB 이하**다. 넘으면 무엇이 들어왔는지 찾는다.
+<!-- 실측 후 350KB 로 조정 (README.md "번들 크기" 참조) — 250 은 측정 전 추정치였고 Babylon core + React 만으로 이미 250KB였다 -->
 
 ### 카메라
 

@@ -40,6 +40,9 @@ export function createFlow(bscene: BScene, scene: Scene): Flow {
   proto.material = mat
   proto.isPickable = false
   proto.thinInstanceEnablePicking = false
+  // 씬 전체가 화면에 들어오므로 절두체 컬링이 필요 없다. 매 프레임
+  // 바운딩을 갱신하지 않아도 된다 (thinInstanceRefreshBoundingInfo 를 피한다).
+  proto.alwaysSelectAsActiveMesh = true
 
   const flows = new Map<string, SegFlow>()
   for (const seg of scene.segments) {
@@ -54,11 +57,19 @@ export function createFlow(bscene: BScene, scene: Scene): Flow {
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   let buf = new Float32Array(0)
+  // thinInstanceSetBuffer 는 이름과 달리 값싼 setter 가 아니다 — 매번 GPU
+  // 버퍼를 dispose 하고 STATIC_DRAW 로 재생성하고 VertexBuffer 4개를 새로
+  // 만들고 바운딩을 O(n×8) 로 다시 훑는다(@babylonjs/core/Meshes/
+  // thinInstanceMesh.js 로 확인). 물건 총수(버퍼 크기)가 바뀔 때만 그 비싼
+  // 경로를 타고, 그 외에는 같은 배열의 내용만 고쳐 thinInstanceBufferUpdated
+  // 로 GPU 에 올린다 — updateDirectly 라 재할당이 없다.
+  let bufferReady = false
 
   const rebuild = () => {
     let total = 0
     for (const f of flows.values()) total += f.count
-    if (buf.length !== total * 16) buf = new Float32Array(total * 16)
+    const resized = buf.length !== total * 16
+    if (resized) buf = new Float32Array(total * 16)
 
     let o = 0
     for (const f of flows.values()) {
@@ -71,7 +82,15 @@ export function createFlow(bscene: BScene, scene: Scene): Flow {
         o += 16
       }
     }
-    proto.thinInstanceSetBuffer("matrix", buf, 16)
+    if (resized || !bufferReady) {
+      // staticBuffer=false 로 만들어야 updatable 버퍼가 된다. true(기본값)로
+      // 만들면 thinInstanceBufferUpdated 가 매번 재생성 경로를 탄다
+      // (thinInstanceAllowAutomaticStaticBufferRecreation).
+      proto.thinInstanceSetBuffer("matrix", buf, 16, false)
+      bufferReady = true
+    } else {
+      proto.thinInstanceBufferUpdated("matrix")
+    }
     proto.setEnabled(total > 0)
   }
 
