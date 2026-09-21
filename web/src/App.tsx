@@ -6,6 +6,7 @@ import Modal from "./Modal.tsx"
 import Viewer from "./viewer/Viewer.tsx"
 import type { IsoCamera } from "./viewer/camera.ts"
 import type { Selection } from "./state.ts"
+import { buildStatic } from "./viewer/build.ts"
 
 export default function App() {
   const { data, error } = useScene()
@@ -23,7 +24,11 @@ export default function App() {
       <div className="viewer-wrap">
         <Viewer
           scene={data.scene}
-          onReady={({ cam }) => { camRef.current = cam; return () => { camRef.current = null } }}
+          onReady={({ bscene, cam }) => {
+            camRef.current = cam
+            const statics = buildStatic(bscene, data.scene)
+            return () => { statics.dispose(); camRef.current = null }
+          }}
         />
         <div className="viewer-controls">
           <button title="왼쪽으로 회전" onClick={() => camRef.current?.rotate(-1)}>⟲</button>
