@@ -1602,6 +1602,11 @@ git commit -m "feat: 적층 신호등 + 장비 경고 발광"
 
 `web/src/viewer/pick.ts`:
 ```ts
+// scene.multiPick 은 Scene 클래스에 스텁으로만 정의돼 있고, 실제 구현은
+// 이 모듈을 사이드이펙트로 임포트해야 Scene.prototype 에 등록된다. Task 6·7 의
+// thinInstance/HighlightLayer 와 같은 함정 — 빠뜨리면 타입체크·빌드는 통과하고
+// 클릭할 때마다 런타임에만 죽는다.
+import "@babylonjs/core/Culling/ray"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Selection } from "../state.ts"
 import type { IsoCamera } from "./camera.ts"
@@ -1621,12 +1626,16 @@ export function attachPicking(
   const canvas = bscene.getEngine().getRenderingCanvas()
   if (!canvas) return () => {}
 
-  const onClick = () => {
+  const onClick = (e: MouseEvent) => {
     // 팬 드래그 뒤의 합성 클릭을 막는다. 지도를 끌 때마다 모달이 열리면
     // 아무도 지도를 못 끈다.
     if (cam.didPan()) return
 
-    const hits = bscene.multiPick(bscene.pointerX, bscene.pointerY) ?? []
+    // bscene.pointerX/pointerY 는 scene.attachControl() 이 호출돼야 갱신된다.
+    // 이 앱은 카메라를 직접 굴리므로(camera.ts) 그걸 부른 적이 없다 — 그대로 쓰면
+    // 항상 초기값(0,0)을 줍는다. 클릭 이벤트 좌표를 캔버스 기준으로 직접 계산한다.
+    const rect = canvas.getBoundingClientRect()
+    const hits = bscene.multiPick(e.clientX - rect.left, e.clientY - rect.top) ?? []
     let best: { meta: MeshMeta; dist: number; rank: number } | null = null
     for (const h of hits) {
       const meta = h.pickedMesh?.metadata as MeshMeta | undefined
@@ -1636,7 +1645,11 @@ export function attachPicking(
       if (!best || rank < best.rank || (rank === best.rank && h.distance < best.dist))
         best = { meta, dist: h.distance, rank }
     }
-    if (!best) return
+    // 빈 공간을 누르면 선택을 푸다
+    if (!best) {
+      onPick(null)
+      return
+    }
     // 신호등을 누르면 그 구간이 잡힌다
     const kind = best.meta.kind === "andon" ? "segment" : best.meta.kind
     onPick({ kind: kind as "section" | "equipment" | "segment", id: best.meta.id })
