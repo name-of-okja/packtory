@@ -1045,14 +1045,27 @@ import { isLift } from "../../../shared/types.ts"
 export const BELT_Y = 0.8
 
 /**
- * 구간의 월드 점열. 리프트는 두 층을 잇는 수직 선분이고,
+ * 구간의 월드 점열. 리프트는 출발점에서 올라가는 세로 기둥 다음 도착 층의 가로 구간이고,
  * 평면 구간은 from → via… → to 의 폴리라인이다.
  */
 export function segmentPoints(scene: Scene, seg: Segment): Vector3[] {
   const fromY = floorElevation(scene, seg.from.floor) + BELT_Y
   const toY = floorElevation(scene, seg.to.floor) + BELT_Y
   if (isLift(seg)) {
-    return [toBabylon(seg.from.x, seg.from.y, fromY), toBabylon(seg.to.x, seg.to.y, toY)]
+    // 스펙은 리프트를 "두 층을 잇는 세로 기둥" 으로 규정한다(본문 표, 완료 기준 10).
+    // 두 끝을 그냥 직선으로 이으면 데모 씬의 lift-1 처럼 수평 33m·수직 6m 인
+    // 경우 2도짜리 사면이 돼서 옆 컨베이어와 구별이 안 된다 — 층을 잇는다는
+    // 것이 화면에서 읽히지 않는다. 출발점에서 수직으로 올린 뒤 도착 층에서 보낸다.
+    const pts = [
+      toBabylon(seg.from.x, seg.from.y, fromY),
+      toBabylon(seg.from.x, seg.from.y, toY),
+    ]
+    // 수직으로만 올라가는 리프트면 가로 구간을 더하지 않는다 — 길이 0 인 구간을
+    // 넣으면 CreateTube 가 법선을 못 구해 메시가 깨진다.
+    if (seg.from.x !== seg.to.x || seg.from.y !== seg.to.y) {
+      pts.push(toBabylon(seg.to.x, seg.to.y, toY))
+    }
+    return pts
   }
   return [
     toBabylon(seg.from.x, seg.from.y, fromY),
@@ -1061,7 +1074,7 @@ export function segmentPoints(scene: Scene, seg: Segment): Vector3[] {
   ]
 }
 
-/** 폴리라인 위를 0..1 로 훑는다. 물건 배치와 신호등 위치에 쓴다 */
+/** 폴리라인 위를 0..1 로 훑는다. 물건 배치에 쓴다 — t 는 순환값이다 (Task 6 이 음수 t 를 넣는다) */
 export function pathSampler(points: Vector3[]): { length: number; at(t: number): Vector3 } {
   const segLen: number[] = []
   let total = 0
