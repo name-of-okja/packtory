@@ -15,7 +15,7 @@
 - Node 20. 허브는 빌드하지 않고 `tsx` 로 직접 실행한다.
 - 테스트 러너는 `node --test` (stdlib). **웹에는 자동화 테스트를 쓰지 않는다** (스펙 결정) — vitest/jest/testing-library 를 설치하지 마라. 웹은 **헤드리스 브라우저 스크린샷**으로 검증한다 (Task 1 이 그 하네스를 만든다).
 - 런타임 의존성은 `react`, `react-dom`, `@babylonjs/core` 셋뿐. 상태관리·UI프레임워크·애니메이션 라이브러리 금지.
-- **Babylon 은 `@babylonjs/core` 에서 개별 import 한다.** `import * as BABYLON from "babylonjs"` 금지 — 400KB 가 통째로 들어온다. 번들 목표 gzip **250KB 이하**.
+- **Babylon 은 `@babylonjs/core` 에서 개별 import 한다.** `import * as BABYLON from "babylonjs"` 금지 — 400KB 가 통째로 들어온다. 초기 로드 gzip 목표 **350KB 이하** — 게이트가 아니라 목표다. (처음엔 250KB 로 적었는데 측정 전 추정치였고, Babylon core + React 만으로 이미 250KB 다.) 이 숫자의 쓸모는 `import * as BABYLON` 이 새어든 것과 정당한 증가를 구분하는 것이지 절대 상한이 아니다.
 - **카메라 기울기(beta)는 고정이다.** `beta = 0.9553 rad` (수평에서 35.26°). 방위각은 45°/135°/225°/315° 네 값만.
 - 좌표 매핑: **씬 `(x, y)` + 층 `elevation` → Babylon `(x, elevation, y)`.** 씬의 Y 가 Babylon 의 Z 다. 뒤집는 곳이 없어야 한다.
 - 컨베이어 벨트면은 바닥판 위 **0.8m** (상수).
@@ -574,7 +574,7 @@ git commit -m "feat: 씬 스키마 v3 — 층 elevation, 설비 height/shape"
     ```
   - `Viewer.tsx`: `<Viewer scene={Scene} onReady={(ctx: ViewerCtx) => void} />`
     ```ts
-    type ViewerCtx = { scene: BScene; cam: IsoCamera; engine: Engine }
+    type ViewerCtx = { bscene: BScene; cam: IsoCamera; engine: Engine }
     ```
 
 - [ ] **Step 1: 좌표 모듈 작성**
@@ -878,7 +878,7 @@ node ../tools/shot.mjs http://localhost:8080/ /tmp/t3.png
 ```bash
 cd web && npm run build 2>&1 | grep -E "gzip"
 ```
-Expected: gzip 합계가 **250KB 이하**. 넘으면 무엇이 들어왔는지 찾아 리포트에 적어라.
+Expected: 초기 로드(주 JS 청크 + CSS) gzip 합계를 **숫자로 적는다.** 350KB 를 넘으면 무엇이 들어왔는지 찾아 적어라. 지연 로드 청크(이 씬이 안 쓰는 텍스처 로더 등)는 초기 로드가 아니므로 따로 적는다.
 
 - [ ] **Step 6: 커밋**
 
@@ -1949,7 +1949,7 @@ cd ../hub && WEB_DIR=../web/dist npx tsx src/index.ts
 ```bash
 cd web && npm run build
 ```
-gzip 합계를 리포트에 적는다. **250KB 를 넘으면** 무엇이 들어왔는지 찾아 적어라 — 대개 `import * as BABYLON` 이나 필요 없는 로더가 딸려온 것이다.
+초기 로드(주 JS 청크 + CSS) gzip 합계와 지연 로드 청크 합계를 **나눠서** 적는다. 초기 로드가 **350KB 를 넘으면** 무엇이 들어왔는지 찾아 적어라 — 대개 `import * as BABYLON` 이나 필요 없는 로더가 딸려온 것이다.
 
 - [ ] **Step 3: 허브 테스트 재확인**
 
