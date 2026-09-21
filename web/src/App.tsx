@@ -9,6 +9,7 @@ import type { Selection } from "./state.ts"
 import { buildStatic } from "./viewer/build.ts"
 import { createFlow, type Flow } from "./viewer/flow.ts"
 import { createAndons, type Andons } from "./viewer/andon.ts"
+import { attachPicking } from "./viewer/pick.ts"
 
 export default function App() {
   const { data, error } = useScene()
@@ -40,7 +41,9 @@ export default function App() {
             const andons = createAndons(bscene, data.scene, statics.equipmentById)
             flowRef.current = flow
             andonRef.current = andons
+            const detach = attachPicking(bscene, cam, setSelection)
             return () => {
+              detach()
               flow.dispose(); andons.dispose(); statics.dispose()
               flowRef.current = null; andonRef.current = null; camRef.current = null
             }
