@@ -15,7 +15,6 @@ export type MeshMeta = { kind: MeshKind; id: string }
 export type StaticMeshes = {
   dispose(): void
   equipmentById: Map<string, AbstractMesh>
-  segmentById: Map<string, AbstractMesh>
 }
 
 /** 바닥판 두께 */
@@ -74,7 +73,6 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
   beltMat.diffuseColor = new Color3(0.22, 0.25, 0.3)
   beltMat.specularColor = Color3.Black()
 
-  const segmentById = new Map<string, AbstractMesh>()
   for (const seg of scene.segments) {
     const pts = segmentPoints(scene, seg)
     // 폴리라인을 튜브로 만든다. 꺾인 구간도 한 메시로 처리된다.
@@ -86,12 +84,10 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
     tube.material = beltMat
     tube.metadata = { kind: "segment", id: seg.id } satisfies MeshMeta
     created.push(tube)
-    segmentById.set(seg.id, tube)
   }
 
   return {
     equipmentById,
-    segmentById,
     dispose() {
       for (const m of created) m.dispose()
       slabMat.dispose()

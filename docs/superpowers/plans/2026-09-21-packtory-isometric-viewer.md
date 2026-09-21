@@ -1032,7 +1032,6 @@ git commit -m "feat: 구역 바닥판과 설비 지오메트리"
 - Produces:
   - `coords.ts`: `segmentPoints(scene, seg): Vector3[]` — 벨트면 높이까지 반영한 월드 점열
   - `coords.ts`: `pathSampler(points): { length: number; at(t: number): Vector3 }`
-  - `build.ts` 의 `StaticMeshes` 에 `segmentById: Map<string, AbstractMesh>` 추가
 
 - [ ] **Step 1: 경로 유틸 작성**
 
@@ -1116,7 +1115,6 @@ import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder"
   beltMat.diffuseColor = new Color3(0.22, 0.25, 0.3)
   beltMat.specularColor = Color3.Black()
 
-  const segmentById = new Map<string, AbstractMesh>()
   for (const seg of scene.segments) {
     const pts = segmentPoints(scene, seg)
     // 폴리라인을 튜브로 만든다. 꺾인 구간도 한 메시로 처리된다.
@@ -1128,11 +1126,10 @@ import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder"
     tube.material = beltMat
     tube.metadata = { kind: "segment", id: seg.id } satisfies MeshMeta
     created.push(tube)
-    segmentById.set(seg.id, tube)
   }
 ```
 
-`StaticMeshes` 타입과 반환값에 `segmentById` 를 더하고, import 에 `segmentPoints` 를 더한다.
+`build.ts` 의 import 에 `segmentPoints` 를 더한다.
 
 - [ ] **Step 3: 화면 확인**
 
