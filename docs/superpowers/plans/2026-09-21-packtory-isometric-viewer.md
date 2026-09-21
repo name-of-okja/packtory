@@ -15,7 +15,7 @@
 - Node 20. 허브는 빌드하지 않고 `tsx` 로 직접 실행한다.
 - 테스트 러너는 `node --test` (stdlib). **웹에는 자동화 테스트를 쓰지 않는다** (스펙 결정) — vitest/jest/testing-library 를 설치하지 마라. 웹은 **헤드리스 브라우저 스크린샷**으로 검증한다 (Task 1 이 그 하네스를 만든다).
 - 런타임 의존성은 `react`, `react-dom`, `@babylonjs/core` 셋뿐. 상태관리·UI프레임워크·애니메이션 라이브러리 금지.
-- **Babylon 은 `@babylonjs/core` 에서 개별 import 한다.** `import * as BABYLON from "babylonjs"` 금지 — 400KB 가 통째로 들어온다. 초기 로드 gzip 목표 **350KB 이하** — 게이트가 아니라 목표다. (처음엔 250KB 로 적었는데 측정 전 추정치였고, Babylon core + React 만으로 이미 250KB 다.) 이 숫자의 쓸모는 `import * as BABYLON` 이 새어든 것과 정당한 증가를 구분하는 것이지 절대 상한이 아니다.
+- **Babylon 은 `@babylonjs/core` 에서 개별 import 한다.** `import * as BABYLON from "babylonjs"` 금지 — 400KB 가 통째로 들어온다. 초기 로드 gzip 목표 **350KB 이하** — 게이트가 아니라 목표다. (처음엔 250KB 로 적었는데 측정 전 추정치였고, Babylon core + React 만으로 이미 250KB 다.) 이 숫자의 쓸모는 `import * as BABYLON` 이 새어든 것과 정당한 증가를 구분하는 것이지 절대 상한이 아니다. 메시 생성도 마찬가지다 — `@babylonjs/core/Meshes/meshBuilder` 의 `MeshBuilder` 는 빌더 21종을 통째로 끌어오는 배럴이라 gzip 35KB 를 버린다(Task 4 에서 측정). `Meshes/Builders/boxBuilder` 의 `CreateBox` 처럼 **필요한 빌더만 개별 경로로** 가져와라.
 - **카메라 기울기(beta)는 고정이다.** `beta = 0.9553 rad` (수평에서 35.26°). 방위각은 45°/135°/225°/315° 네 값만.
 - 좌표 매핑: **씬 `(x, y)` + 층 `elevation` → Babylon `(x, elevation, y)`.** 씬의 Y 가 Babylon 의 Z 다. 뒤집는 곳이 없어야 한다.
 - 컨베이어 벨트면은 바닥판 위 **0.8m** (상수).
@@ -909,10 +909,10 @@ git commit -m "feat: Babylon 부트스트랩 + 정사영 아이소메트릭 카�
 
 `web/src/viewer/build.ts`:
 ```ts
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder"
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
-import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene } from "../../../shared/types.ts"
@@ -945,7 +945,7 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
   for (const sec of scene.sections) {
     const [x, y, w, h] = sec.rect
     const elev = floorElevation(scene, sec.floor)
-    const slab = MeshBuilder.CreateBox(`sec:${sec.id}`, { width: w, height: SLAB, depth: h }, bscene)
+    const slab = CreateBox(`sec:${sec.id}`, { width: w, height: SLAB, depth: h }, bscene)
     slab.position = toBabylon(x + w / 2, y + h / 2, elev - SLAB / 2)
     slab.material = slabMat
     slab.metadata = { kind: "section", id: sec.id } satisfies MeshMeta
@@ -965,8 +965,8 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
     const [w, d] = e.size
 
     const mesh = equipmentShape(e) === "cylinder"
-      ? MeshBuilder.CreateCylinder(`eq:${e.id}`, { diameter: Math.min(w, d), height: ht, tessellation: 24 }, bscene)
-      : MeshBuilder.CreateBox(`eq:${e.id}`, { width: w, height: ht, depth: d }, bscene)
+      ? CreateCylinder(`eq:${e.id}`, { diameter: Math.min(w, d), height: ht, tessellation: 24 }, bscene)
+      : CreateBox(`eq:${e.id}`, { width: w, height: ht, depth: d }, bscene)
 
     // Babylon 의 상자·원통은 원점이 중심이므로 높이의 절반만큼 올린다
     mesh.position = toBabylon(e.pos[0], e.pos[1], elev + ht / 2)
@@ -1090,7 +1090,11 @@ export function pathSampler(points: Vector3[]): { length: number; at(t: number):
 
 - [ ] **Step 2: 구간 메시를 빌더에 추가**
 
-`build.ts` 의 설비 루프 뒤에 넣는다:
+`build.ts` 의 설비 루프 뒤에 넣고, 파일 맨 위 import 에 아래 한 줄을 더한다:
+```ts
+import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder"
+```
+
 ```ts
   // ── 구간 (벨트) ─────────────────────────────────────────
   // 상태색은 Task 7 의 신호등이 지고, 벨트 자체는 중립색이다. 벨트에까지
@@ -1103,7 +1107,7 @@ export function pathSampler(points: Vector3[]): { length: number; at(t: number):
   for (const seg of scene.segments) {
     const pts = segmentPoints(scene, seg)
     // 폴리라인을 튜브로 만든다. 꺾인 구간도 한 메시로 처리된다.
-    const tube = MeshBuilder.CreateTube(
+    const tube = CreateTube(
       `seg:${seg.id}`,
       { path: pts, radius: 0.22, tessellation: 8, cap: 2 },
       bscene,
@@ -1156,7 +1160,7 @@ git commit -m "feat: 구간·리프트 지오메트리와 경로 샘플러"
 
 `web/src/viewer/flow.ts`:
 ```ts
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder"
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector"
@@ -1190,7 +1194,7 @@ export function createFlow(bscene: BScene, scene: Scene): Flow {
   mat.specularColor = Color3.Black()
 
   // 상자 하나를 thin instance 로 복제한다 — 몇백 개여도 드로우콜 하나다
-  const proto = MeshBuilder.CreateBox("items", { size: 0.38 }, bscene)
+  const proto = CreateBox("items", { size: 0.38 }, bscene)
   proto.material = mat
   proto.isPickable = false
   proto.thinInstanceEnablePicking = false
@@ -1347,7 +1351,8 @@ git commit -m "feat: Thin Instance 물건 흐름"
 
 `web/src/viewer/andon.ts`:
 ```ts
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder"
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
+import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder"
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial"
 import { Color3 } from "@babylonjs/core/Maths/math.color"
 import type { Mesh } from "@babylonjs/core/Meshes/mesh"
@@ -1399,7 +1404,7 @@ export function createAndons(bscene: BScene, scene: Scene): Andons {
       .reduce((m, e) => Math.max(m, equipmentHeight(e)), 0)
     const poleH = Math.max(MIN_POLE, tallest + 1)
 
-    const pole = MeshBuilder.CreateCylinder(`andonpole:${seg.id}`, { diameter: 0.12, height: poleH, tessellation: 8 }, bscene)
+    const pole = CreateCylinder(`andonpole:${seg.id}`, { diameter: 0.12, height: poleH, tessellation: 8 }, bscene)
     pole.position.set(end.x, base + poleH / 2, end.z)
     pole.material = poleMat
     pole.isPickable = false
@@ -1410,7 +1415,7 @@ export function createAndons(bscene: BScene, scene: Scene): Andons {
     mat.specularColor = Color3.Black()
     mat.emissiveColor = LAMP.unknown.color
 
-    const lamp = MeshBuilder.CreateSphere(`andon:${seg.id}`, { diameter: 0.7, segments: 10 }, bscene)
+    const lamp = CreateSphere(`andon:${seg.id}`, { diameter: 0.7, segments: 10 }, bscene)
     lamp.position.set(end.x, base + poleH, end.z)
     lamp.material = mat
     // 신호등을 클릭하면 그 구간이 잡혀야 한다
