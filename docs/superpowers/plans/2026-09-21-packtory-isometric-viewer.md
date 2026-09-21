@@ -95,10 +95,8 @@ web/src/
 //
 //   node tools/shot.mjs http://localhost:8080/ /tmp/shot.png [대기ms]
 //
-import { existsSync, copyFileSync, mkdtempSync } from "node:fs"
+import { copyFileSync, existsSync, rmSync, statSync } from "node:fs"
 import { execFileSync } from "node:child_process"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 
 const CANDIDATES = [
   "chromium", "chromium-browser", "google-chrome", "google-chrome-stable",
@@ -129,9 +127,18 @@ if (!browser) {
 }
 
 // Windows 실행파일은 WSL 경로에 못 쓴다 — Windows 쪽 임시 경로로 찍고 복사해 온다.
+// 파일명은 실행마다 고유해야 한다. 고정 이름을 쓰면 이번 실행이 실패했을 때
+// 지난번 이미지가 남아 있고, 그걸 복사해 오면서 "찍음" 을 출력한다 —
+// 이후 열 태스크의 화면 검증이 통째로 거짓말이 된다.
 const isWin = browser.startsWith("/mnt/c/")
-const winOut = "C:\\Users\\Public\\packtory-shot.png"
-const target = isWin ? winOut : out
+const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const winWsl = `/mnt/c/Users/Public/packtory-shot-${stamp}.png`
+const target = isWin ? `C:\\Users\\Public\\packtory-shot-${stamp}.png` : out
+const written = isWin ? winWsl : out
+
+// 이전 산출물이 남아 있으면 지운다 (고유 이름이라 거의 없지만, out 쪽은 재사용된다)
+rmSync(written, { force: true })
+const startedAt = Date.now()
 
 execFileSync(browser, [
   "--headless=new", "--disable-gpu", "--no-sandbox",
@@ -141,7 +148,22 @@ execFileSync(browser, [
   url,
 ], { stdio: "ignore" })
 
-if (isWin) copyFileSync("/mnt/c/Users/Public/packtory-shot.png", out)
+// 브라우저가 0 으로 끝나고도 아무것도 안 쓸 수 있다 (렌더 크래시, 권한 문제).
+// 여기서 크게 실패하지 않으면 없는 화면을 확인했다고 믿게 된다.
+if (!existsSync(written)) {
+  console.error(`브라우저가 이미지를 쓰지 않았다: ${written}`)
+  console.error(`(${browser} 이 종료코드 0 으로 끝났지만 산출물이 없다)`)
+  process.exit(4)
+}
+if (statSync(written).mtimeMs < startedAt - 1000) {
+  console.error(`이미지가 이번 실행의 것이 아니다 (수정시각이 실행보다 앞선다): ${written}`)
+  process.exit(5)
+}
+
+if (isWin) {
+  copyFileSync(written, out)
+  rmSync(written, { force: true })
+}
 console.log(`찍음: ${out}`)
 ```
 
