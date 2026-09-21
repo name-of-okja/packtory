@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { Scene, TagValue } from "../../shared/types.ts"
-import { formatStall, segStallMs, segState } from "./Segment.tsx"
+import { formatStall, segStallMs, segState } from "./state.ts"
 
 type Props = {
   scene: Scene

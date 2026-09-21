@@ -2,135 +2,21 @@
 html, body, #root { height: 100%; margin: 0; }
 body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1115; color: #e6e8eb; }
 
-/* height: 100% 를 주면 안 된다 — 부모(.body)에 확정 높이가 없어 퍼센트가 풀리고,
-   그러면 안쪽 svg 가 viewBox 종횡비(44:29)로 제 높이를 정해버려 그리드 트랙보다
-   커진다. 페이지에 세로 스크롤바가 생기는 원인이 이것이다. 그리드 아이템은
-   기본이 stretch 라 아무것도 안 주면 트랙을 정확히 채운다. min-*: 0 은 콘텐츠
-   기준 최소크기 때문에 줄어들지 못하는 것을 막는다. */
-.map { position: relative; min-width: 0; min-height: 0; }
-.map svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; background: #0f1115; }
-.map svg:active { cursor: grabbing; }
-
-.section rect { fill: #1a1f27; stroke: #2b3240; stroke-width: 0.12; }
-.section { cursor: pointer; }
-.section:hover rect { fill: #1f2530; }
-.section-label { fill: #8b94a3; font-size: 1.2px; pointer-events: none; }
-
-.equipment rect { fill: #39424f; stroke: #5b6675; stroke-width: 0.1; }
-.equipment { cursor: pointer; }
-.equipment:hover rect { fill: #46515f; }
-.equipment.warn rect { stroke: #e08a2e; stroke-width: 0.35; }
-.equipment.selected rect { stroke: #6aa9ff; stroke-width: 0.3; }
-/* 위 두 규칙은 특이도가 같고 둘 다 stroke 를 건드린다. 겹치면 선언 순서만으로
-   선택이 이기면서 경고가 조용히 지워진다 — 정확히 운영자가 경고 난 장비를
-   눌러본 순간 경고 표시가 사라진다. 겹칠 때는 경고가 이긴다: 데이터 상태가
-   UI 초점보다 중요하고, 선택은 채움색이라는 다른 채널로 표현한다. */
-.equipment.warn.selected rect { stroke: #e08a2e; stroke-width: 0.45; fill: #4a5361; }
-.equipment-label { fill: #aeb6c2; font-size: 0.9px; text-anchor: middle; pointer-events: none; }
-
-.map-controls { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
-.map-controls button {
-  width: 32px; height: 32px; border: 1px solid #2b3240; border-radius: 6px;
-  background: #171b22; color: #e6e8eb; font-size: 16px; cursor: pointer;
-}
-.map-controls button:hover { background: #222833; }
-
 .app { display: grid; grid-template-rows: auto 1fr; height: 100%; position: relative; }
+.viewer-slot { display: grid; place-items: center; color: #8b94a3; min-height: 0; }
 .offline {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   background: #4a2020; border: 1px solid #7a3030; padding: 6px 12px; border-radius: 6px; z-index: 10;
 }
 
-/* ── 구간 ─────────────────────────────────────────── */
-.segment { cursor: pointer; }
-/* 얇은 선을 클릭하기 어려우므로 투명한 굵은 히트 영역을 겹쳐 둔다 */
-.rail-hit { stroke: transparent; stroke-width: 1.6; fill: none; }
-.rail { stroke-width: 0.45; fill: none; stroke-linecap: round; }
-.item { fill: #cfd6e0; }
-.overflow { fill: #e6e8eb; font-size: 1px; text-anchor: middle; }
-.segment-label { fill: #8b94a3; font-size: 0.85px; text-anchor: middle; pointer-events: none; }
-
-@keyframes flow { to { offset-distance: 100%; } }
-.item { animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
-
-/* 가동 */
-.segment[data-state="running"] .rail { stroke: #3d7a4a; }
-.segment[data-state="running"] .item { fill: #7fd694; }
-
-/* 정지 — 색만으로 구분하지 않는다. 점선과 깜빡임이 같이 붙는다. */
-.segment[data-state="stalled"] .rail { stroke: #d24b4b; stroke-dasharray: 1 0.6; animation: blink 1s steps(2) infinite; }
-.segment[data-state="stalled"] .item { fill: #ff8a8a; animation-play-state: paused; }
 @keyframes blink { 50% { opacity: 0.35; } }
-
-/* 대기 — 물건이 안 들어와서 안 도는 것은 정상이다. 여기서 빨강을 쓰지 않는 것이 이 제품의 값어치다. */
-.segment[data-state="idle"] .rail { stroke: #4a515c; }
-
-/* 불명 — 빗금 */
-.segment[data-state="unknown"] .rail { stroke: #6b7280; stroke-dasharray: 0.4 0.4; }
-
-/* ── 리프트 ───────────────────────────────────────── */
-.lift { cursor: pointer; }
-.lift circle { fill: #2a3240; stroke: #5b6675; stroke-width: 0.15; }
-.lift-arrow { fill: #cfd6e0; font-size: 1.2px; text-anchor: middle; pointer-events: none; }
-.lift-label { fill: #8b94a3; font-size: 0.85px; text-anchor: middle; pointer-events: none; }
-.lift[data-state="stalled"] circle { stroke: #d24b4b; stroke-width: 0.3; animation: blink 1s steps(2) infinite; }
-.lift[data-state="running"] circle { stroke: #3d7a4a; }
-.lift[data-state="unknown"] circle { stroke-dasharray: 0.4 0.4; }
-
-.segment.selected .rail, .lift.selected circle { stroke: #6aa9ff; }
-
-/* 움직임을 줄이라고 한 사용자에게도 정보는 하나도 사라지면 안 된다.
-   점과 깜빡임은 반대로 다뤄야 한다 — 하나로 묶으면 안 된다.
-   점: animation: none 을 주면 안 된다 — .item 의 위치는 오직 @keyframes flow 의
-   offset-distance 로만 정해지는데, 애니메이션 자체를 지우면 그 값이 캐스케이드
-   에서 완전히 빠져 초기값인 0%(경로 시작점)로 되돌아간다. 그러면 인덱스와
-   무관하게 모든 점이 구간 시작점 한 점에 겹쳐버려 "몇 개가 밀려 있는지"라는
-   정보 자체가 사라진다. animation-play-state: paused 는 각 점을 자기
-   animation-delay 가 정한 위치(= 대기열 상의 제자리)에서 그대로 얼어붙게 한다.
-   깜빡임: 반대로 paused 를 주면 안 된다 — 앱이 이미 돌고 있는 도중에 사용자가
-   설정을 켜면 blink 주기 중간(opacity: 0.35)에서 얼어붙어 경보색이 흐려질 수
-   있다. 깜빡임은 순수 장식이고 opacity 기본값이 1(완전 불투명)이므로 통째로
-   꺼도 정보 손실이 없다 — 색과 점선은 이 미디어쿼리와 무관한 별도 규칙이라
-   정적으로 그대로 남는다. */
-@media (prefers-reduced-motion: reduce) {
-  .item { animation-play-state: paused !important; }
-  .segment[data-state="stalled"] .rail,
-  .lift[data-state="stalled"] circle {
-    animation: none !important;
-  }
-}
-
-/* ── 층 탭 ────────────────────────────────────────── */
-.floor-tabs { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: #12161d; border-right: 1px solid #222833; }
-.floor-tab {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  width: 58px; padding: 8px 4px; border: 1px solid #2b3240; border-radius: 6px;
-  background: #171b22; color: #aeb6c2; cursor: pointer;
-}
-.floor-tab:hover { background: #222833; }
-.floor-tab.current { background: #243048; border-color: #3c5a8a; color: #e6e8eb; }
-.floor-id { font-weight: 600; }
-.floor-badge { font-size: 12px; line-height: 1; }
-.floor-state { font-size: 9px; }
-/* 색은 모양·낱말 위에 얹는 세 번째 채널이지 유일한 채널이 아니다. */
-.floor-tab[data-state="running"] .floor-badge { color: #7fd694; }
-.floor-tab[data-state="stalled"] .floor-badge { color: #ff8a8a; }
-.floor-tab[data-state="idle"]    .floor-badge { color: #8b94a3; }
-.floor-tab[data-state="unknown"] .floor-badge { color: #6b7280; }
-.floor-tab[data-state="stalled"] { border-color: #d24b4b; }
-
-/* height: 100% 를 주면 안 된다 — .app 의 1fr 트랙이 아니라 그리드 컨테이너
-   전체 높이로 풀려서, 상단 이상 막대(44px) 위에 100vh 가 얹히고 페이지에
-   세로 스크롤바가 생긴다. 1fr 이 이미 크기를 정하므로 min-height: 0 만 있으면
-   된다 (중첩 그리드가 콘텐츠 기준 auto 최소높이로 부풀지 않게). */
-.body { display: grid; grid-template-columns: auto 1fr; min-height: 0; }
 
 /* ── 이상 칩 ──────────────────────────────────────── */
 .alert-bar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 8px 12px; background: #12161d; border-bottom: 1px solid #222833; min-height: 44px;
-  /* .app 이 `auto 1fr` 이라 이 막대가 자라는 만큼 지도가 줄어든다. 정지가
-     여럿이면 칩이 여러 줄로 감기면서, 볼 게 제일 많은 순간에 지도가 제일
+  /* .app 이 `auto 1fr` 이라 이 막대가 자라는 만큼 뷰어가 줄어든다. 정지가
+     여럿이면 칩이 여러 줄로 감기면서, 볼 게 제일 많은 순간에 뷰어가 제일
      작아진다 — 제품 목적의 정반대다. 상한을 두고 넘치면 막대 안에서 스크롤. */
   max-height: 25vh; overflow-y: auto;
 }

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { Camera, Scene, TagValue } from "../../shared/types.ts"
-import type { Selection } from "./geom.ts"
-import { STATE_LABEL, formatStall, segStallMs, segState, segWip } from "./Segment.tsx"
+import { STATE_LABEL, formatStall, segStallMs, segState, segWip, type Selection } from "./state.ts"
 
 /** go2rtc 의 웹 컴포넌트를 한 번만 로드한다 */
 function useGo2rtcScript(base: string) {
