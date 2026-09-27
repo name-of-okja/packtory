@@ -1,7 +1,7 @@
 # packtory 원인 추적 설계 (하위 프로젝트 B)
 
 작성일: 2026-09-27
-상태: 초안 (검토 대기)
+상태: 승인됨, 구현 중 실측으로 고침 (2026-09-27)
 
 ## 1. 목적
 
@@ -76,7 +76,7 @@ export type Scene = { version: 4; /* … */ }
 | 11 | 에러 | 연결에 순환이 있다. **순환에 걸린 구간 id 를 나열한다** (A 에서 미룬 사소한 문제 — 대형 씬에서 손으로 끝점 하나를 고쳐 순환이 생기면 어디인지 찾을 수가 없었다) |
 | 12 | 경고 | `next` 로 이어진 두 구간의 끝점(앞 구간의 `to`, 뒤 구간의 `from`)이 1m 넘게 떨어져 있거나 층이 다르다. 연결은 되지만 화면에서 선이 끊겨 보인다 |
 
-`topoOrder()` 는 순환일 때 `null` 대신 **순환에서 빠져나오지 못한 구간 id 들**을
+`topoOrder()` 는 순환일 때 `null` 대신 **순환과 그 하류의 구간 id 들**을
 알려줄 수 있어야 한다 (규칙 11 의 메시지). 반환형을
 `{ order: string[] } | { cycle: string[] }` 로 바꾼다.
 
@@ -95,13 +95,14 @@ export type Classified = { state: SegState; root: string }
 
 /**
  * derive 가 낸 state 를 연결을 따라 다시 나눈다. stalled 만 바뀐다:
- * 하류가 전부 stalled 또는 blocked 면 blocked(영향), 아니면 stalled(원인).
+ * 하류가 전부 stalled·blocked 이거나 꽉 찼으면(WIP ≥ capacity × 0.8) blocked(영향), 아니면 stalled(원인).
  */
 export function classify(
   down: Map<string, string[]>,
   order: string[],             // 위상 순서 (상류가 먼저)
   states: Map<string, SegState>,
   stallMs: Map<string, number>,
+  full: Set<string>,           // 꽉 찬 구간 (WIP ≥ capacity × 0.8)
 ): Map<string, Classified>
 ```
 
@@ -112,11 +113,17 @@ export function classify(
 | 구간의 derive state | 하류 | 결과 | `root` |
 |---|---|---|---|
 | stalled | 없음 (출구) | `stalled` (원인) | `""` |
-| stalled | **전부** stalled/blocked | `blocked` (영향) | 하류들의 원인 중 가장 오래 멈춘 것 |
+| stalled | **전부** stalled/blocked/꽉 찬 running | `blocked` (영향) | 하류들의 원인 중 가장 오래 멈춘 것 (없으면 `""`) |
 | stalled | 하나라도 running/idle/unknown | `stalled` (원인) | `""` |
 | 그 외 | — | 그대로 | `""` |
 
-- 하류의 원인은 하류가 원인이면 하류 자신, 영향이면 하류의 `root` 다.
+- 하류의 원인은 하류가 원인이면 하류 자신, 영향이면 하류의 `root`, 꽉 찬 running 이면
+  그 구간이 자기 하류에서 물려받은 원인이다.
+- **꽉 찬 running 을 기다림으로 치는 이유 (실측으로 고침):** 막힘이 번진 망에서 합류점
+  아래 구간은 꽉 찬 채 조금씩 움직여 running 이다. 그 자리를 다투다 몫을 못 받은
+  상류가 원인으로 오판돼 막힘과 무관한 곳에 빨강이 계속 켜졌다. 기준을 딱 capacity 로
+  하면 한 칸 빈 순간마다 깜빡여 80% 로 잡았다. 꽉 찬 running 아래에 원인이 없으면
+  영향이되 `root` 는 비어 있다 — 원인 없는 정체다 (칩에 세지 않는다).
 - 하류가 **unknown** 이면 기다리는 중이라고 증명할 수 없으므로 원인으로 둔다.
   센서가 끊긴 하류 때문에 멈춘 것처럼 보이는 구간을 노랑으로 숨기면 안 된다.
 - 하류가 **idle**(비어서 쉼)인데 이 구간이 꽉 찬 채 멈췄다면, 고장은 그 사이에
@@ -130,7 +137,7 @@ export function classify(
 
 ### 허브 배선
 
-`index.ts` 의 판정 타이머(500ms)에서 `derive` 다음에 `classify` 를 부른다.
+`index.ts` 의 판정 타이머(500ms)에서 `derive` 다음에 `withCause`(안에서 `classify`)를 부른다. 구간별 `capacity` 를 넘긴다(꽉 참 판단).
 `.state` 태그는 분류 결과로 낸다. 새 태그 `{id}.root` (문자열, 해당 없으면 `""`)
 를 구간마다 낸다. 캐시가 바뀐 값만 밀기 때문에 대부분의 틱에서 `.root` 는
 전송되지 않는다.
@@ -203,7 +210,7 @@ export function badgeText(label: string, s: { stalled: number; blocked: number }
 | `downstream` | `next` 그대로, 없으면 `[]` |
 | 생성기 | 모든 `next` 가 실재 id, 규칙 12 경고 0, 기존 불변식 전부 |
 | `classify` | 체인(끝만 원인), 합류(두 상류 영향, root 같음), 분기 한쪽만 막힘(상류는 running 이라 대상 아님), 출구 정지(원인), 하류 idle(원인), 하류 unknown(원인), 원인 둘 중 오래 멈춘 쪽이 root |
-| **mock 정답 대조** | 전파 mock + `derive` + `classify` 를 대형 씬에서 20분 돌린다. 매 판정마다 셋을 확인한다. ① mock 이 **지금 막고 있는 구간이 stalled 면 반드시 원인**. ② 원인으로 판정된 구간은 **지금 막힌 구간이거나, 풀린 지 `stallSec` 이내인 막힘의 상류**뿐이다 — 풀린 직후 빈자리가 상류로 번지는 몇 틱 동안 상류가 잠깐 원인으로 보이는 것만 허용한다. ③ 지금 막힌 구간의 상류로 stalled 판정이 난 것은 전부 blocked |
+| **mock 정답 대조** | 전파 mock + `derive` + `classify` 를 대형 씬에서 20분 돌린다. 매 판정마다 둘을 확인한다. ① 지금 막힌 구간이 stalled 면 원인이다(다른 막힘의 상류면 예외 — 알려진 한계). ② 원인은 **지금 막힌 구간이거나, 풀린 지 `stallSec` 이내인 막힘의 상류**뿐이다. **오판은 원인 판정의 0.5% 이하, 같은 구간이 두 번 잇달아 틀리지 않는다** — 카운터만으로 못 가르는 순간이 드물게 있다(시드 8개 × 20분에서 원인 판정 약 4000번 중 0~4번, 전부 0.5초짜리, 실측) |
 | 화면 요약 함수 | `affectedCounts`, `sectionSummary`, `badgeText` 의 각 경우 |
 
 mock 정답 대조를 위해 mock 이 **지금 막고 있는 구간 목록**을 테스트에 알려줄 수
