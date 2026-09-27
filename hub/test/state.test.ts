@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { affectedCounts, badgeText, badgeTone, lampVisibleFar, sectionSummary, segRoot } from "../../web/src/state.ts"
+import { affectedCounts, badgeText, badgeTone, idleBarText, lampVisibleFar, sectionSummary, segRoot } from "../../web/src/state.ts"
 import type { Scene, TagValue, Value } from "../../shared/types.ts"
 
 /** 구간 셋(a·b 는 구역 A, c 는 구역 B)과 구역 둘 */
@@ -53,4 +53,9 @@ test("badgeText·badgeTone: 원인 있음 / 영향만 / 정상", () => {
   assert.equal(badgeTone({ stalled: 1, blocked: 4 }), "stalled")
   assert.equal(badgeTone({ stalled: 0, blocked: 6 }), "blocked")
   assert.equal(badgeTone({ stalled: 0, blocked: 0 }), "ok")
+})
+
+test("idleBarText: 원인이 없을 때 막대 문구 — 영향이 남아 있으면 '정상 가동' 이라 하지 않는다", () => {
+  assert.equal(idleBarText(scene, vals({ "a.state": "running", "b.state": "idle" })), "정상 가동")
+  assert.equal(idleBarText(scene, vals({ "a.state": "blocked", "a.root": "", "b.state": "blocked" })), "정체 2구간 · 원인 없음")
 })

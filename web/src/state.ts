@@ -76,6 +76,15 @@ export function badgeTone(s: SectionSummary): "stalled" | "blocked" | "ok" {
   return s.stalled ? "stalled" : s.blocked ? "blocked" : "ok"
 }
 
+/**
+ * 원인 칩이 하나도 없을 때 막대 문구. 원인 없는 정체(영향만 있음)가 남아 있으면
+ * "정상 가동" 이라 하지 않는다 — 신호등은 노랑인데 막대가 정상이라 하면 둘 중 하나는 거짓이다.
+ */
+export function idleBarText(scene: Scene, values: Map<string, TagValue>): string {
+  const n = scene.segments.filter((g) => segState(g.id, values) === "blocked").length
+  return n ? `정체 ${n}구간 · 원인 없음` : "정상 가동"
+}
+
 /** "3:12" 꼴 */
 export function formatStall(ms: number): string {
   const s = Math.floor(ms / 1000)

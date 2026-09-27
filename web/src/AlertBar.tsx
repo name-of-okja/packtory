@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { Scene, Segment, TagValue } from "../../shared/types.ts"
-import { affectedCounts, formatStall, segStallMs, segState } from "./state.ts"
+import { affectedCounts, formatStall, idleBarText, segStallMs, segState } from "./state.ts"
 
 /** 칩은 이만큼만 세운다. 막힘 하나가 상류로 번지면 빨강이 여럿 된다 — 전부
  *  세우면 막대가 뷰어를 잡아먹는다. 오래 멈춘 순이라 대개 원인이 앞에 온다 */
@@ -61,7 +61,10 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     <>
       {announcer}
       {stalled.length === 0 ? (
-        <div className="alert-bar ok">정상 가동</div>
+        (() => {
+          const text = idleBarText(scene, values)
+          return <div className={text === "정상 가동" ? "alert-bar ok" : "alert-bar jam"}>{text}</div>
+        })()
       ) : (
         <div className="alert-bar">
           {stalled.slice(0, MAX_CHIPS).map(({ seg, ms }) => {

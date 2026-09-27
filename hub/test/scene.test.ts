@@ -175,7 +175,7 @@ test("규칙10: next 가 자기 자신이면 에러", () => {
 /** base() 에 sg2 를 더해 sg1 → sg2 로 잇는다. sg2 의 시작은 sg1 의 끝 (9, 5) */
 function linked(): Scene {
   const s = base()
-  s.segments.push({ id: "sg2", label: "S2", section: "a",
+  s.segments.push({ id: "sg2", label: "S2", section: "a", capacity: 4,
     from: { floor: "1F", x: 9, y: 5 }, to: { floor: "1F", x: 9, y: 9 } })
   s.segments[0].next = ["sg2"]
   return s
@@ -206,4 +206,27 @@ test("실제 씬 둘 다 경고 없이 통과한다", () => {
     const { errors, warnings } = validateScene(loadScene(new URL(f, import.meta.url).pathname))
     assert.deepEqual([errors, warnings], [[], []], f)
   }
+})
+
+test("규칙13: 끝점이 맞닿는데 next 에 없으면 경고 — 빠뜨린 연결", () => {
+  const s = linked()
+  s.segments[0].next = []
+  const { errors, warnings } = validateScene(s)
+  assert.deepEqual(errors, [])
+  assert.match(warnings.join("\n"), /sg1 의 끝과 sg2 의 시작이 맞닿는데 next 에 없다/)
+})
+
+test("규칙14: 상류가 있는데 capacity 가 없으면 경고 — 꽉 참을 못 가려 원인 판정이 흔들린다", () => {
+  const s = linked()
+  delete s.segments[1].capacity
+  const { warnings } = validateScene(s)
+  assert.match(warnings.join("\n"), /sg2: capacity 가 없다/)
+  assert.doesNotMatch(warnings.join("\n"), /sg1: capacity/, "상류가 없는 입구는 괜찮다")
+})
+
+test("v3 씬을 거절할 때 next 를 적으라고 알려준다", () => {
+  assert.throws(
+    () => loadScene(new URL("./fixtures/v1.json", import.meta.url).pathname),
+    /next/,
+  )
 })

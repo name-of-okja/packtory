@@ -124,6 +124,26 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
     }
   }
 
+  // 규칙13: 빠뜨린 연결. 앞 구간의 끝과 뒤 구간의 시작이 맞닿는데(규칙 12 와 같은
+  // 1m) next 에 없다. v3 씬의 version 만 4 로 올리고 next 를 안 적으면 모든 구간이
+  // 출구가 되어 경고 없이 떴다 — 모의 데이터가 안 흐르고 모든 정지가 원인(빨강)이 된다.
+  for (const g of s.segments) {
+    const linked = new Set(g.next ?? [])
+    for (const h of s.segments) {
+      if (h === g || linked.has(h.id) || h.from.floor !== g.to.floor) continue
+      if (Math.hypot(h.from.x - g.to.x, h.from.y - g.to.y) <= 1)
+        warnings.push(`구간 ${g.id} 의 끝과 ${h.id} 의 시작이 맞닿는데 next 에 없다 — 빠뜨린 연결인가?`)
+    }
+  }
+
+  // 규칙14: 상류가 있는데 capacity 가 없다. 원인 판정은 "하류가 꽉 찼는가" 를
+  // capacity 로 가르는데, 없으면 기본 20 이라 작은 구간이 영영 꽉 차지 않아 합류점
+  // 아래에서 가짜 빨강이 돌아온다. 입구(상류 없음)는 꽉 참을 물어볼 일이 없다.
+  const fed = new Set(s.segments.flatMap((g) => g.next ?? []))
+  for (const g of s.segments)
+    if (fed.has(g.id) && g.capacity === undefined)
+      warnings.push(`구간 ${g.id}: capacity 가 없다 — 원인 판정이 꽉 참을 못 가린다 (기본 20)`)
+
   // 규칙11: 순환. 모의 데이터가 제자리를 도는 물건을 만들고 원인 판정이 끝나지
   // 않는다. 어디를 고칠지 알 수 있게 걸린 구간을 나열한다.
   const topo = topoOrder(downstream(s))
@@ -139,7 +159,8 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
 
 export function loadScene(path: string): Scene {
   const s = JSON.parse(readFileSync(path, "utf8")) as Scene
-  if (s.version !== 4) throw new Error(`씬 version 4 만 지원한다 (받음: ${s.version})`)
+  if (s.version !== 4)
+    throw new Error(`씬 version 4 만 지원한다 (받음: ${s.version}) — v4 는 구간마다 next 로 다음 구간을 적는다`)
   const { errors, warnings } = validateScene(s)
   for (const w of warnings) console.warn(`씬 경고: ${w}`)
   if (errors.length) throw new Error(`씬 검증 실패:\n  ${errors.join("\n  ")}`)

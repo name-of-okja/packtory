@@ -30,6 +30,7 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
   max-height: 25vh; overflow-y: auto;
 }
 .alert-bar.ok { color: #7fd694; }
+.alert-bar.jam { color: #ffe08a; }
 .chip {
   padding: 6px 12px; border: 1px solid #d24b4b; border-radius: 999px;
   background: #3a1d1d; color: #ffb4b4; cursor: pointer; font: inherit;

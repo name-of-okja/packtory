@@ -66,7 +66,7 @@ Babylon 셰이더 폴백 청크(`default.vertex-*`, `default.fragment-*`,
 cd hub && npm test
 ```
 
-테스트는 허브에만 있다 (`node --test`, 110개). 웹은 배선(3D 렌더링·피킹·
+테스트는 허브에만 있다 (`node --test`, 114개). 웹은 배선(3D 렌더링·피킹·
 카메라)이라 자동 테스트를 쓰지 않는다 — 브라우저에서 사람이 직접 확인해야
 하고, 순서와 각 항목에서 정확히 무엇이 보여야 하는지는
 `docs/BROWSER-CHECKLIST.md` 에 있다.
