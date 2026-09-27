@@ -14,6 +14,9 @@ class FakeAdapter implements Adapter {
 
 const SCENE = new URL("../../scene.json", import.meta.url).pathname
 
+/** 작은 씬 하나만 도는 허브 */
+const one = (adapter: Adapter) => ({ scenes: [{ id: "small", path: SCENE, adapter }], defaultScene: "small" })
+
 function nextMessage(ws: WebSocket, pred: (m: WsMessage) => boolean): Promise<WsMessage> {
   return new Promise((resolve) => {
     const on = (raw: Buffer) => {
@@ -30,7 +33,7 @@ function tagOf(m: WsMessage, tag: string): TagValue | undefined {
 
 test("접속하면 스냅샷을 받고, 스냅샷에 파생 태그가 들어있다", async () => {
   const fake = new FakeAdapter()
-  const hub = await startHub({ scenePath: SCENE, port: 0, adapter: fake, go2rtcBase: "http://x" })
+  const hub = await startHub({ ...one(fake), port: 0, go2rtcBase: "http://x" })
   try {
     const now = Date.now()
     fake.emit("conv-3.in", 100, now)
@@ -50,7 +53,7 @@ test("접속하면 스냅샷을 받고, 스냅샷에 파생 태그가 들어있�
 
 test("값이 바뀌면 values 로 푸시하고, 안 바뀐 태그는 안 보낸다", async () => {
   const fake = new FakeAdapter()
-  const hub = await startHub({ scenePath: SCENE, port: 0, adapter: fake, go2rtcBase: "http://x" })
+  const hub = await startHub({ ...one(fake), port: 0, go2rtcBase: "http://x" })
   try {
     const ws = new WebSocket(`ws://127.0.0.1:${hub.port}/ws`)
     await nextMessage(ws, (m) => m.type === "snapshot")
@@ -88,7 +91,7 @@ test("값이 바뀌면 values 로 푸시하고, 안 바뀐 태그는 안 보낸�
 })
 
 test("GET /api/scene 가 씬과 go2rtcBase 를 준다", async () => {
-  const hub = await startHub({ scenePath: SCENE, port: 0, adapter: new FakeAdapter(), go2rtcBase: "http://cam:1984" })
+  const hub = await startHub({ ...one(new FakeAdapter()), port: 0, go2rtcBase: "http://cam:1984" })
   try {
     const res = await fetch(`http://127.0.0.1:${hub.port}/api/scene`)
     const body = await res.json()
@@ -103,7 +106,7 @@ test("GET /api/scene 가 씬과 go2rtcBase 를 준다", async () => {
 test("stallSec 이 지나면 stalled 로 바뀌고 stallMs 가 올라간다", async () => {
   const fake = new FakeAdapter()
   // stallSec 을 1초로 줄여 테스트를 빠르게 돌린다
-  const hub = await startHub({ scenePath: SCENE, port: 0, adapter: fake, go2rtcBase: "http://x", stallSecOverride: 1 })
+  const hub = await startHub({ ...one(fake), port: 0, go2rtcBase: "http://x", stallSecOverride: 1 })
   try {
     const now = Date.now()
     fake.emit("conv-3.in", 100, now)
@@ -125,9 +128,8 @@ test("stallSec 이 지나면 stalled 로 바뀌고 stallMs 가 올라간다", as
 
 test("정적 서빙: 깨진 퍼센트 인코딩 요청은 400 이고, 프로세스는 죽지 않는다", async () => {
   const hub = await startHub({
-    scenePath: SCENE,
+    ...one(new FakeAdapter()),
     port: 0,
-    adapter: new FakeAdapter(),
     go2rtcBase: "http://x",
     // 존재하기만 하면 되는 디렉터리 — 정적 파일을 실제로 서빙하는지는 이 테스트의 관심사가 아니다.
     webDir: new URL(".", import.meta.url).pathname,
