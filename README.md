@@ -34,6 +34,10 @@ cd hub && npm install && npm start
 cd web && npm install && npm run dev   # http://localhost:5173
 ```
 
+허브는 작은 씬(`scene.json`)과 대형 씬(`scene.large.json`)을 함께 돌린다. 화면
+오른쪽 아래 맨 앞 버튼(소형/대형)으로 오가고, 고른 씬은 URL `?scene=small|large`
+에 남는다. 기본은 대형. `SCENE=...` 을 주면 그 씬 하나만 돌고 버튼은 없다.
+
 ## 단일 프로세스로 실행
 
 ```bash
@@ -72,7 +76,7 @@ Babylon 셰이더 폴백 청크(`default.vertex-*`, `default.fragment-*`,
 cd hub && npm test
 ```
 
-테스트는 허브에만 있다 (`node --test`, 114개). 웹은 배선(3D 렌더링·피킹·
+테스트는 허브에만 있다 (`node --test`, 121개). 웹은 배선(3D 렌더링·피킹·
 카메라)이라 자동 테스트를 쓰지 않는다 — 브라우저에서 사람이 직접 확인해야
 하고, 순서와 각 항목에서 정확히 무엇이 보여야 하는지는
 `docs/BROWSER-CHECKLIST.md` 에 있다.
@@ -86,7 +90,7 @@ cd hub && npm test
 
 ```bash
 cd hub && npm run gen:large        # scene.large.json 을 다시 쓴다
-SCENE=../scene.large.json npm start
+npm start                          # 기본이 대형 씬이다
 ```
 
 모의 데이터는 구간 연결(`next`)을 따라 흐른다. 한
@@ -99,8 +103,8 @@ SCENE=../scene.large.json npm start
 만지면 적층으로 돌아간다. 멀리서 보면 정지 구간과 구역 배지만 보이고, 가까이
 가면 전부 보인다.
 
-URL 파라미터: `?layout=stair`(계단에서 시작), `?idleMs=<ms>`(복귀 시간),
-`?fps`(구석에 fps).
+URL 파라미터: `?scene=small|large`(씬), `?layout=stair`(계단에서 시작),
+`?idleMs=<ms>`(복귀 시간). fps 는 늘 왼쪽 아래에 보인다.
 
 막힘이 번지면 **원인만 빨강**(점멸), 원인 때문에 기다리는 상류는 **노랑**(영향,
 점멸 없음)이다. 칩은 원인 하나에 하나, "· 영향 N" 과 함께 선다. 영향 구간을
