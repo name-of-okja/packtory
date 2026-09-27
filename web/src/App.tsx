@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useScene } from "./scene.ts"
+import { useScene, useSceneList } from "./scene.ts"
 import { useValues } from "./useValues.ts"
 import AlertBar from "./AlertBar.tsx"
 import Modal from "./Modal.tsx"
@@ -27,9 +27,10 @@ const IDLE_RESET_MS = Number(params.get("idleMs")) || 5 * 60_000
 /** `?layout=stair` 로 계단 배치에서 시작한다. 헤드리스 스크린샷(tools/shot.mjs)은
  *  버튼을 못 누르므로 확인용이다. 이것도 IDLE_RESET_MS 뒤에는 기본으로 돌아간다 */
 const START_MODE: LayoutMode = params.get("layout") === "stair" ? "stair" : "stack"
-const SHOW_FPS = params.has("fps")
+/** 씬 버튼에 쓰는 짧은 이름. 목록에 없는 id 는 씬 이름을 그대로 쓴다 */
+const SCENE_SHORT: Record<string, string> = { small: "소형", large: "대형" }
 
-/** `?fps` 일 때만 구석에 뜬다. 성능 측정용 (스펙 6장) */
+/** 늘 왼쪽 아래에 뜬다. 대형 씬에서 버벅이는지 바로 보이게 */
 function Fps({ engine }: { engine: Engine | undefined }) {
   const [fps, setFps] = useState(0)
   useEffect(() => {
@@ -41,8 +42,14 @@ function Fps({ engine }: { engine: Engine | undefined }) {
 }
 
 export default function App() {
-  const { data, error } = useScene()
-  const { values, connected } = useValues()
+  const { list, error: listError } = useSceneList()
+  // 고른 씬. 아직 안 골랐으면 URL 의 ?scene= (목록에 있을 때), 아니면 허브의 기본 씬
+  const [picked, setPicked] = useState<string | null>(null)
+  const urlScene = params.get("scene")
+  const sceneId = picked
+    ?? (list ? (list.scenes.some((s) => s.id === urlScene) ? urlScene : list.default) : null)
+  const { data, error } = useScene(sceneId)
+  const { values, connected } = useValues(sceneId)
   const [selection, setSelection] = useState<Selection>(null)
   const [ctx, setCtx] = useState<ViewerCtx | null>(null)
   const [mode, setMode] = useState<LayoutMode>(START_MODE)
@@ -70,7 +77,7 @@ export default function App() {
     }
   }, [mode])
 
-  if (error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {error}</p>
+  if (listError || error) return <p style={{ padding: 16 }}>씬을 못 읽었다: {listError ?? error}</p>
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
 
   const goTo = (seg: Segment) => {
@@ -81,6 +88,17 @@ export default function App() {
     // 진짜 중점을 잡아야 한다.
     const mid = pathSampler(pts).at(0.5)
     camRef.current?.flyTo(mid)
+  }
+
+  // 씬 전환. 선택(모달)은 비운다 — 다른 씬의 id 가 남으면 안 된다. URL 에 남겨
+  // 새로고침·링크 공유에도 그 씬이 뜨게 한다. 층 배치 모드는 그대로 둔다
+  const other = list && list.scenes.length > 1 ? list.scenes.find((s) => s.id !== sceneId) : undefined
+  const switchScene = (id: string) => {
+    const q = new URLSearchParams(location.search)
+    q.set("scene", id)
+    history.replaceState(null, "", `?${q}`)
+    setSelection(null)
+    setPicked(id)
   }
 
   const goSection = (id: string) => {
@@ -122,8 +140,13 @@ export default function App() {
           }}
         />
         <Labels ctx={ctx} scene={data.scene} values={values} mode={mode} onSection={goSection} />
-        {SHOW_FPS && <Fps engine={ctx?.engine} />}
+        <Fps engine={ctx?.engine} />
         <div className="viewer-controls">
+          {other && (
+            <button className="wide" title={`${other.name} 보기`} onClick={() => switchScene(other.id)}>
+              {SCENE_SHORT[other.id] ?? other.name}
+            </button>
+          )}
           <button title="왼쪽으로 회전" onClick={() => camRef.current?.rotate(-1)}>⟲</button>
           <button title="오른쪽으로 회전" onClick={() => camRef.current?.rotate(1)}>⟳</button>
           <button title="전체보기" onClick={() => camRef.current?.home()}>⌂</button>

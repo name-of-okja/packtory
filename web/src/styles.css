@@ -13,6 +13,8 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
   background: #171b22; color: #e6e8eb; font-size: 16px; cursor: pointer;
 }
 .viewer-controls button:hover { background: #222833; }
+/* 씬 전환처럼 글자가 들어가는 버튼 */
+.viewer-controls button.wide { width: auto; padding: 0 10px; font-size: 13px; }
 .offline {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   background: #4a2020; border: 1px solid #7a3030; padding: 6px 12px; border-radius: 6px; z-index: 10;
