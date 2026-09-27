@@ -94,7 +94,7 @@ test("GET /api/scene 가 씬과 go2rtcBase 를 준다", async () => {
     const body = await res.json()
     assert.equal(res.status, 200)
     assert.equal(body.go2rtcBase, "http://cam:1984")
-    assert.equal(body.scene.version, 3)
+    assert.equal(body.scene.version, 4)
   } finally {
     await hub.close()
   }

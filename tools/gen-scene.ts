@@ -171,9 +171,19 @@ export function generate(seed: number): Scene {
   DOWN_LIFTS.forEach(([y, fo], i) =>
     add("lift-down", at(fo, WEST, y), at(1, WEST, y), `lift-d${i + 1}`, `하강 리프트 ${i + 1}`))
 
+  // ── 연결: 끝점이 같은 좌표면 이어진 것이다 ────────────────
+  // 생성기는 이어지는 구간의 끝점을 정확히 같게 찍으므로 여기서 한 번 계산해
+  // next 로 써 넣는다. 씬을 읽는 쪽은 next 만 본다 (스키마 v4).
+  const nodeKey = (e: Endpoint) => `${e.floor}:${e.x}:${e.y}`
+  const byFrom = new Map<string, string[]>()
+  for (const s of segments) byFrom.set(nodeKey(s.from), [...(byFrom.get(nodeKey(s.from)) ?? []), s.id])
+  for (const s of segments) {
+    const next = byFrom.get(nodeKey(s.to))
+    if (next) s.next = next
+  }
+
   // ── 설비: 합류점 머지기, 분기점 분류기, 가로줄 셋 중 하나에 가공기 ──
   const equipment: Equipment[] = []
-  const nodeKey = (e: Endpoint) => `${e.floor}:${e.x}:${e.y}`
   const inDeg = new Map<string, number>(), outDeg = new Map<string, number>()
   const nodeAt = new Map<string, Endpoint>()
   for (const s of segments) {
@@ -215,7 +225,7 @@ export function generate(seed: number): Scene {
   }
 
   return {
-    version: 3, name: "대형 데모 공장 (5층)", stallSec: 10,
+    version: 4, name: "대형 데모 공장 (5층)", stallSec: 10,
     floors, sections, equipment, segments, cameras,
   }
 }

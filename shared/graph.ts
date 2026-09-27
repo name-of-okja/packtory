@@ -1,36 +1,38 @@
-import type { Endpoint, Scene } from "./types.ts"
-
-const key = (e: Endpoint) => `${e.floor}:${e.x}:${e.y}`
+import type { Scene } from "./types.ts"
 
 /**
- * 구간 id → 하류 구간 id 들. X 의 to 와 Y 의 from 이 같은 층·같은 좌표면
- * X → Y 로 이어진 것이다. 스키마에 연결 필드가 없으므로(하위 프로젝트 B 에서
- * 넣는다) 끝점 일치가 연결의 유일한 근거다 — 생성기가 이어지는 끝점을 정확히
- * 같은 값으로 찍는다.
+ * 구간 id → 하류 구간 id 들. 씬의 `next` 가 연결의 유일한 출처다 (스키마 v4).
+ * 예전에는 끝점 좌표가 같으면 이어진 것으로 추론했지만, 손으로 그린 현장 씬은
+ * 끝점이 정확히 안 맞는다 — 설비를 사이에 둔 두 구간이 흔한 예다.
  */
 export function downstream(scene: Scene): Map<string, string[]> {
-  const byFrom = new Map<string, string[]>()
-  for (const s of scene.segments) {
-    const k = key(s.from)
-    byFrom.set(k, [...(byFrom.get(k) ?? []), s.id])
-  }
-  return new Map(scene.segments.map((s) => [s.id, byFrom.get(key(s.to)) ?? []]))
+  return new Map(scene.segments.map((s) => [s.id, s.next ?? []]))
 }
 
-/** 위상 순서(상류가 먼저). 순환이 있으면 null */
-export function topoOrder(down: Map<string, string[]>): string[] | null {
+export type Topo = { order: string[] } | { cycle: string[] }
+
+/**
+ * 위상 순서(상류가 먼저). 순환이 있으면 순서 대신 순환에서 빠져나오지 못한
+ * 구간들(순환 자신과 그 하류)을 준다 — 부팅 에러 메시지가 어디를 고쳐야 하는지
+ * 말할 수 있어야 한다. 없는 id 를 가리키는 연결은 무시한다(검증기가 따로 잡는다).
+ */
+export function topoOrder(down: Map<string, string[]>): Topo {
   const indeg = new Map<string, number>([...down.keys()].map((id) => [id, 0]))
-  for (const ds of down.values()) for (const d of ds) indeg.set(d, (indeg.get(d) ?? 0) + 1)
+  for (const ds of down.values())
+    for (const d of ds) if (indeg.has(d)) indeg.set(d, indeg.get(d)! + 1)
   const queue = [...indeg].filter(([, n]) => n === 0).map(([id]) => id)
-  const out: string[] = []
+  const order: string[] = []
   while (queue.length) {
     const id = queue.shift()!
-    out.push(id)
+    order.push(id)
     for (const d of down.get(id) ?? []) {
+      if (!indeg.has(d)) continue
       const n = indeg.get(d)! - 1
       indeg.set(d, n)
       if (n === 0) queue.push(d)
     }
   }
-  return out.length === down.size ? out : null
+  if (order.length === down.size) return { order }
+  const done = new Set(order)
+  return { cycle: [...down.keys()].filter((id) => !done.has(id)) }
 }

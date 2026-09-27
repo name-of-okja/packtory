@@ -118,7 +118,7 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
 
 export function loadScene(path: string): Scene {
   const s = JSON.parse(readFileSync(path, "utf8")) as Scene
-  if (s.version !== 3) throw new Error(`씬 version 3 만 지원한다 (받음: ${s.version})`)
+  if (s.version !== 4) throw new Error(`씬 version 4 만 지원한다 (받음: ${s.version})`)
   const { errors, warnings } = validateScene(s)
   for (const w of warnings) console.warn(`씬 경고: ${w}`)
   if (errors.length) throw new Error(`씬 검증 실패:\n  ${errors.join("\n  ")}`)

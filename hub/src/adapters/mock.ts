@@ -94,7 +94,7 @@ export class MockAdapter implements Adapter {
 
     const down = downstream(scene)
     const topo = topoOrder(down)
-    if (!topo) throw new Error("모의 어댑터: 구간 연결에 순환이 있다 — 끝점이 이어진 구간들이 제자리로 돌아온다")
+    if ("cycle" in topo) throw new Error(`모의 어댑터: 구간 연결에 순환이 있다: ${topo.cycle.join(", ")}`)
 
     const byId = new Map<string, Sim>()
     for (const seg of scene.segments) {
@@ -109,7 +109,7 @@ export class MockAdapter implements Adapter {
       s.down = ds.map((d) => byId.get(d)!)
       for (const d of s.down) { d.source = false; up.get(d)!.push(s) }
     }
-    this.sims = topo.map((id) => byId.get(id)!)
+    this.sims = topo.order.map((id) => byId.get(id)!)
     this.order = [...this.sims].reverse()
     this.sources = this.sims.filter((s) => s.source)
 

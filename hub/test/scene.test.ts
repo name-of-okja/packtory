@@ -7,7 +7,7 @@ import type { Scene } from "../../shared/types.ts"
 /** 검증을 통과하는 최소 씬. 각 테스트가 여기서 한 군데씩 망가뜨린다. */
 function base(): Scene {
   return {
-    version: 3,
+    version: 4,
     name: "t",
     stallSec: 10,
     floors: [{ id: "1F", label: "1층", order: 1 }],
@@ -86,7 +86,7 @@ test("구간 좌표는 섹션 rect를 벗어나도 된다", () => {
 
 test("실제 데모 씬이 검증을 통과한다", () => {
   const scene = loadScene(new URL("../../scene.json", import.meta.url).pathname)
-  assert.equal(scene.version, 3)
+  assert.equal(scene.version, 4)
   assert.equal(scene.segments.length, 4)
 })
 
@@ -139,10 +139,10 @@ test("규칙8: height 가 0 이하면 에러", () => {
   assert.match(validateScene(s).errors.join("\n"), /height/)
 })
 
-test("version 이 3 이 아니면 로드가 실패한다", () => {
+test("version 이 4 가 아니면 로드가 실패한다", () => {
   assert.throws(
     () => loadScene(new URL("./fixtures/v1.json", import.meta.url).pathname),
-    /version 3/,
+    /version 4/,
   )
 })
 

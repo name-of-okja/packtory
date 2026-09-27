@@ -36,7 +36,7 @@ for (const seed of SEEDS) {
   })
 
   test(`seed ${seed}: 순환 없음`, () => {
-    assert.notEqual(topoOrder(down), null)
+    assert.ok("order" in topoOrder(down))
   })
 
   test(`seed ${seed}: 모든 구간이 source 에서 닿고 sink 로 빠진다`, () => {
@@ -46,6 +46,16 @@ for (const seed of SEEDS) {
     assert.equal(sinks.length, 4, "출고 도크 4")
     assert.equal(reach(sources, down).size, s.segments.length, "source 에서 안 닿는 구간이 있다")
     assert.equal(reach(sinks, up).size, s.segments.length, "sink 로 안 빠지는 구간이 있다")
+  })
+
+  test(`seed ${seed}: next 는 실재 구간을 가리키고, 이어진 두 구간의 끝점이 같다`, () => {
+    const byId = new Map(s.segments.map((g) => [g.id, g]))
+    for (const g of s.segments)
+      for (const n of g.next ?? []) {
+        const h = byId.get(n)
+        assert.ok(h, `${g.id} → 없는 ${n}`)
+        assert.deepEqual(h.from, g.to, `${g.id} → ${n} 끝점이 떨어져 있다`)
+      }
   })
 
   test(`seed ${seed}: 합류·분기 차수 3 이하`, () => {

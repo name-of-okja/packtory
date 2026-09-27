@@ -35,16 +35,17 @@ function simulate(scene: Scene, seconds: number, opts: MockOptions,
 
 /** 합류 s1, s2 → m → x. m 을 막으면 s1·s2 는 차서 stalled, x 는 굶어 idle */
 function merge(): Scene {
-  const seg = (id: string, fx: number, fy: number, tx: number, ty: number) => ({
+  const seg = (id: string, fx: number, fy: number, tx: number, ty: number, next?: string[]) => ({
     id, label: id, section: "a", capacity: 8,
     from: { floor: "1F", x: fx, y: fy }, to: { floor: "1F", x: tx, y: ty },
+    ...(next && { next }),
   })
   return {
-    version: 3, name: "t", stallSec: 10,
+    version: 4, name: "t", stallSec: 10,
     floors: [{ id: "1F", label: "1층", order: 1 }],
     sections: [{ id: "a", label: "A", floor: "1F", rect: [0, 0, 100, 100], cameras: [] }],
     equipment: [],
-    segments: [seg("s1", 0, 10, 20, 20), seg("s2", 0, 30, 20, 20), seg("m", 20, 20, 40, 20), seg("x", 40, 20, 60, 20)],
+    segments: [seg("s1", 0, 10, 20, 20, ["m"]), seg("s2", 0, 30, 20, 20, ["m"]), seg("m", 20, 20, 40, 20, ["x"]), seg("x", 40, 20, 60, 20)],
     cameras: [],
   }
 }
@@ -92,7 +93,8 @@ test("막힘이 풀리면 곧 전부 running 으로 돌아온다", () => {
 
 test("분기 한쪽이 막혀도 다른 쪽으로 흘러 상류는 멈추지 않는다", () => {
   const s = merge()
-  // s1 → m 대신 s1 이 m 과 y 로 갈라지게 바꾼다
+  // s1 이 m 과 y 로 갈라지게 바꾼다
+  s.segments[0].next = ["m", "y"]
   s.segments.push({ id: "y", label: "y", section: "a", capacity: 8,
     from: { floor: "1F", x: 20, y: 20 }, to: { floor: "1F", x: 20, y: 50 } })
   const { states } = simulate(s, 60, { blocks: [{ id: "m", fromMs: 5_000, toMs: 90_000 }], dockBreaks: false })
@@ -104,10 +106,8 @@ test("물건은 사라지지도 늘지도 않는다: 들어온 총량 = 나간 �
   const { counters } = simulate(large, 300, {})
   const n = (tag: string) => counters.get(tag) as number
   let inSrc = 0, outSink = 0, wip = 0
-  const fed = new Set(large.segments.flatMap((a) => large.segments
-    .filter((b) => b.from.floor === a.to.floor && b.from.x === a.to.x && b.from.y === a.to.y).map((b) => b.id)))
-  const feeds = new Set(large.segments.filter((a) => large.segments
-    .some((b) => b.from.floor === a.to.floor && b.from.x === a.to.x && b.from.y === a.to.y)).map((a) => a.id))
+  const fed = new Set(large.segments.flatMap((a) => a.next ?? []))
+  const feeds = new Set(large.segments.filter((a) => (a.next ?? []).length > 0).map((a) => a.id))
   for (const g of large.segments) {
     if (!fed.has(g.id)) inSrc += n(`${g.id}.in`)
     if (!feeds.has(g.id)) outSink += n(`${g.id}.out`)
@@ -143,7 +143,9 @@ test("작은 씬은 이어진 체인이라 막힘이 상류로 번진다", () =>
 
 test("구간 연결에 순환이 있으면 알아볼 수 있는 에러로 죽는다", () => {
   const s = merge()
-  s.segments.push({ id: "back", label: "back", section: "a",
+  // x → back → m → x
+  s.segments.find((g) => g.id === "x")!.next = ["back"]
+  s.segments.push({ id: "back", label: "back", section: "a", next: ["m"],
     from: { floor: "1F", x: 60, y: 20 }, to: { floor: "1F", x: 20, y: 20 } })
-  assert.throws(() => new MockAdapter(s), /순환/)
+  assert.throws(() => new MockAdapter(s), /순환이 있다: m, x, back/)
 })

@@ -64,12 +64,15 @@ export type Segment = {
   wipOffset?: number
   /** PLC 카운터 최대값. 있으면 모듈러로 델타를 구한다 */
   counterMax?: number
+  /** 이 구간이 물건을 넘겨주는 구간들. 없거나 비었으면 출구(sink)다.
+   *  구간 연결의 유일한 출처다 (스키마 v4) — 끝점 좌표로 추론하지 않는다 */
+  next?: string[]
 }
 
 export type Camera = { id: string; label: string; stream: string }
 
 export type Scene = {
-  version: 3
+  version: 4
   name: string
   stallSec: number
   floors: Floor[]
