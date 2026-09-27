@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { Scene, Segment, TagValue } from "../../shared/types.ts"
-import { formatStall, segStallMs, segState } from "./state.ts"
+import { affectedCounts, formatStall, segStallMs, segState } from "./state.ts"
 
 /** 칩은 이만큼만 세운다. 막힘 하나가 상류로 번지면 빨강이 여럿 된다 — 전부
  *  세우면 막대가 뷰어를 잡아먹는다. 오래 멈춘 순이라 대개 원인이 앞에 온다 */
@@ -13,7 +13,8 @@ type Props = {
 }
 
 /**
- * 정지 중인 구간만 칩으로 띄운다. 칩을 누르면 화면이 거기로 데려간다 —
+ * 원인 구간만 칩으로 띄운다 — 막힘이 번져 멈춘 영향(노랑) 구간은 칩이 아니라 원인
+ * 칩의 "영향 N" 으로 센다. 원인 하나에 칩 열셋이 서면 신입은 어디부터 볼지 모른다. 칩을 누르면 화면이 거기로 데려간다 —
  * 신입이 찾을 필요가 없는 것이 이 제품의 핵심이다.
  */
 export default function AlertBar({ scene, values, onGo }: Props) {
@@ -21,6 +22,7 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     .filter((s) => segState(s.id, values) === "stalled")
     .map((s) => ({ seg: s, ms: segStallMs(s.id, values) }))
     .sort((a, b) => b.ms - a.ms)
+  const affected = affectedCounts(scene, values)
 
   // 살아있는 영역이 알려야 할 것은 "정지가 새로 생겼다/풀렸다" 이지
   // "초가 바뀌었다" 가 아니다. role="status" 는 암묵적으로 aria-atomic="true"
@@ -39,9 +41,12 @@ export default function AlertBar({ scene, values, onGo }: Props) {
     setAnnouncement(
       stalled.length === 0
         ? "정상 가동으로 복귀"
-        : `정지 ${stalled.length}건: ${stalled.map(({ seg }) => seg.label).join(", ")}`,
+        : `정지 ${stalled.length}건: ${stalled.map(({ seg }) => {
+          const n = affected.get(seg.id) ?? 0
+          return n ? `${seg.label} (영향 ${n})` : seg.label
+        }).join(", ")}`,
     )
-  }, [ids, stalled])
+  }, [ids, stalled, affected])
 
   // 살아있는 영역은 내용이 바뀌기 **전에** 이미 DOM 에 있어야 한다. 새로 삽입된
   // 영역의 초기 내용은 안 읽어주는 AT 가 있기 때문이다. 두 분기 안에 각각 쓰면
@@ -61,9 +66,10 @@ export default function AlertBar({ scene, values, onGo }: Props) {
         <div className="alert-bar">
           {stalled.slice(0, MAX_CHIPS).map(({ seg, ms }) => {
             const section = scene.sections.find((x) => x.id === seg.section)
+            const n = affected.get(seg.id) ?? 0
             return (
               <button key={seg.id} className="chip" onClick={() => onGo(seg)}>
-                ⚠ {section?.label ?? seg.section} {seg.label} 정지 {formatStall(ms)}
+                ⚠ {section?.label ?? seg.section} {seg.label} 정지 {formatStall(ms)}{n ? ` · 영향 ${n}` : ""}
               </button>
             )
           })}

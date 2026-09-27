@@ -3,14 +3,14 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Scene, TagValue } from "../../shared/types.ts"
 import { equipmentHeight } from "../../shared/types.ts"
 import type { LayoutMode } from "../../shared/layout.ts"
-import { segState, segStallMs, segWip, formatStall } from "./state.ts"
+import { badgeText, badgeTone, formatStall, sectionSummary, segRoot, segState, segStallMs, segWip } from "./state.ts"
 import { worldAt, segmentPoints, pathSampler } from "./viewer/coords.ts"
 import { projectToScreen } from "./viewer/project.ts"
 import { SHOW_BELOW, zoomOf } from "./viewer/camera.ts"
 import type { ViewerCtx } from "./viewer/Viewer.tsx"
 
 type Item = { key: string; text: string; x: number; y: number; cls: string }
-type Badge = { id: string; text: string; x: number; y: number; stalled: number }
+type Badge = { id: string; text: string; x: number; y: number; tone: "stalled" | "blocked" | "ok" }
 
 export default function Labels({ ctx, scene, values, mode, onSection }: {
   ctx: ViewerCtx | null
@@ -28,8 +28,9 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
     const { bscene } = ctx
 
     const recompute = () => {
-      // 멀리서는 정지 구간 라벨과 구역 배지만, 가까이서는 화면 안의 모든 라벨.
+      // 멀리서는 원인 구간 라벨과 구역 배지만, 가까이서는 화면 안의 모든 라벨.
       // 대형 씬은 전체보기에서 구간 500 개다 — 전부 띄우면 글자 더미에 빨강이 묻힌다.
+      // 영향(노랑) 구간은 멀리서 신호등만 선다 — 라벨까지 띄우면 원인이 다시 묻힌다.
       const far = zoomOf(bscene) > SHOW_BELOW
       const out: Item[] = []
 
@@ -42,10 +43,8 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
         }
       }
 
-      const stalledIn = new Map<string, number>()
       for (const seg of scene.segments) {
         const st = segState(seg.id, values)
-        if (st === "stalled") stalledIn.set(seg.section, (stalledIn.get(seg.section) ?? 0) + 1)
         if (far && st !== "stalled") continue
 
         // pts[Math.floor(pts.length / 2)] 는 중점이 아니다 — via 없는 2점
@@ -65,16 +64,23 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
           out.push({ key: `ov:${seg.id}`, text: `+${over}`, x: p.x, y: p.y - 16, cls: "lbl-over" })
         if (st === "stalled")
           out.push({ key: `st:${seg.id}`, text: formatStall(segStallMs(seg.id, values)), x: p.x, y: p.y - 32, cls: "lbl-stall" })
+        if (st === "blocked") {
+          // 무엇을 기다리는지 말해 준다. 원인이 없는 영향(원인 없는 정체)은 시간만
+          const root = scene.segments.find((g) => g.id === segRoot(seg.id, values))
+          const why = root ? ` · ${root.label} 때문에 대기` : ""
+          out.push({ key: `st:${seg.id}`, text: `${formatStall(segStallMs(seg.id, values))}${why}`, x: p.x, y: p.y - 32, cls: "lbl-wait" })
+        }
       }
 
       const bs: Badge[] = []
       if (far) {
+        const summary = sectionSummary(scene, values)
         for (const sec of scene.sections) {
           const [x, y, w, h] = sec.rect
           const p = projectToScreen(bscene, worldAt(scene, sec.floor, x + w / 2, y + h / 2, 0.5, mode))
           if (!p.visible) continue
-          const n = stalledIn.get(sec.id) ?? 0
-          bs.push({ id: sec.id, text: `${sec.label} · ${n ? `정지 ${n}` : "정상"}`, x: p.x, y: p.y, stalled: n })
+          const s = summary.get(sec.id)!
+          bs.push({ id: sec.id, text: badgeText(sec.label, s), x: p.x, y: p.y, tone: badgeTone(s) })
         }
       }
 
@@ -103,7 +109,7 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
         {badges.map((b) => (
           <button
             key={b.id}
-            className={b.stalled ? "badge stalled" : "badge"}
+            className={b.tone === "ok" ? "badge" : `badge ${b.tone}`}
             style={{ transform: `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)` }}
             onClick={() => onSection(b.id)}
           >

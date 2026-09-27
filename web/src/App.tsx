@@ -141,6 +141,7 @@ export default function App() {
         go2rtcBase={data.go2rtcBase}
         selection={selection}
         onClose={() => setSelection(null)}
+        onGo={goTo}
       />
     </div>
   )

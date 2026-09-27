@@ -66,6 +66,11 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .rows div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222833; }
 .rows dt { color: #8b94a3; margin: 0; }
 .rows dd { margin: 0; }
+.goto-root {
+  margin-top: 12px; width: 100%; padding: 8px 12px; border: 1px solid #d24b4b; border-radius: 6px;
+  background: #3a1d1d; color: #ffb4b4; font: inherit; cursor: pointer; text-align: left;
+}
+.goto-root:hover { background: #4a2424; }
 
 /* ── HTML 오버레이 라벨 ───────────────────────────────
    left/top 이 아니라 transform 으로만 옮긴다 — 매 프레임 값이 바뀌므로
@@ -79,6 +84,7 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .lbl-seg  { font-size: 11px; color: #8b94a3; }
 .lbl-over { font-size: 13px; color: #e6e8eb; font-weight: 600; }
 .lbl-stall{ font-size: 13px; color: #ff8a8a; font-weight: 600; }
+.lbl-wait { font-size: 12px; color: #ffd966; }
 
 /* ── 구역 배지 (멀리서 보기) ─────────────────────────
    라벨 층과 달리 누를 수 있다. 위치는 라벨과 같은 방식(transform)으로 옮긴다. */
@@ -89,6 +95,8 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
   background: #16301f; color: #9fe0b4; font: 12px/1.4 inherit; cursor: pointer;
 }
 .badge.stalled { border-color: #d24b4b; background: #3a1d1d; color: #ffb4b4; font-weight: 600; }
+/* 영향만 있는 구역 — 원인은 다른 구역에 있다 */
+.badge.blocked { border-color: #b8962e; background: #332a12; color: #ffe08a; }
 .chip-more { color: #ffb4b4; font-size: 13px; }
 
 .fps {

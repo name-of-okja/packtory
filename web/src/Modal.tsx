@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import type { Camera, Scene, TagValue } from "../../shared/types.ts"
-import { STATE_LABEL, formatStall, segStallMs, segState, segWip, type Selection } from "./state.ts"
+import type { Camera, Scene, Segment, TagValue } from "../../shared/types.ts"
+import { STATE_LABEL, formatStall, segRoot, segStallMs, segState, segWip, type Selection } from "./state.ts"
 
 /** go2rtc 의 웹 컴포넌트를 한 번만 로드한다 */
 function useGo2rtcScript(base: string) {
@@ -21,8 +21,8 @@ function num(values: Map<string, TagValue>, tag: string): number | null {
   return typeof v?.v === "number" ? v.v : null
 }
 
-/** 포커스 트랩 대상. 이 모달 안에 있을 수 있는 요소는 닫기 버튼과 카메라 탭
- *  버튼뿐이라 매번 다시 조회해도 비용이 없다 — 목록을 캐싱할 이유가 없다. */
+/** 포커스 트랩 대상. 이 모달 안에 있을 수 있는 요소는 닫기 버튼, 카메라 탭,
+ *  원인으로 가기 버튼뿐이라 매번 다시 조회해도 비용이 없다 — 목록을 캐싱할 이유가 없다. */
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 type Props = {
@@ -31,9 +31,18 @@ type Props = {
   go2rtcBase: string
   selection: Selection
   onClose: () => void
+  /** 영향 구간의 "원인 →" 버튼. 모달을 닫고 그 구간으로 데려간다 */
+  onGo: (seg: Segment) => void
 }
 
-export default function Modal({ scene, values, go2rtcBase, selection, onClose }: Props) {
+/** 정지·영향이면 상태 뒤에 정지 시간을 붙인다 */
+function stateText(id: string, values: Map<string, TagValue>): string {
+  const st = segState(id, values)
+  const t = st === "stalled" || st === "blocked" ? ` ${formatStall(segStallMs(id, values))}` : ""
+  return `${STATE_LABEL[st]}${t}`
+}
+
+export default function Modal({ scene, values, go2rtcBase, selection, onClose, onGo }: Props) {
   const [tab, setTab] = useState(0)
   const ready = useGo2rtcScript(go2rtcBase)
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -64,6 +73,8 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
   let sectionId: string | undefined
   let title = ""
   let rows: [string, string][] = []
+  // 영향 구간이면 그 원인. 모달 아래에 "원인: … →" 버튼으로 뜬다
+  let root: Segment | undefined
 
   if (selection.kind === "section") {
     const sec = scene.sections.find((s) => s.id === selection.id)
@@ -72,11 +83,7 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
     title = sec.label
     rows = scene.segments
       .filter((g) => g.section === sec.id)
-      .map((g) => {
-        const st = segState(g.id, values)
-        const suffix = st === "stalled" ? ` ${formatStall(segStallMs(g.id, values))}` : ""
-        return [g.label, `${STATE_LABEL[st]}${suffix} · WIP ${segWip(g.id, values)}`]
-      })
+      .map((g) => [g.label, `${stateText(g.id, values)} · WIP ${segWip(g.id, values)}`])
   } else if (selection.kind === "equipment") {
     const eq = scene.equipment.find((e) => e.id === selection.id)
     if (!eq) return null
@@ -93,12 +100,13 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
     sectionId = seg.section
     title = seg.label
     const st = segState(seg.id, values)
+    if (st === "blocked") root = scene.segments.find((g) => g.id === segRoot(seg.id, values))
     rows = [
       ["상태", STATE_LABEL[st]],
       ["누적 입고", String(num(values, `${seg.id}.in`) ?? "—")],
       ["누적 출고", String(num(values, `${seg.id}.out`) ?? "—")],
       ["구간 내 재공(WIP)", `${segWip(seg.id, values)}${seg.capacity ? ` / ${seg.capacity}` : ""}`],
-      ["정지 시간", st === "stalled" ? formatStall(segStallMs(seg.id, values)) : "—"],
+      ["정지 시간", st === "stalled" || st === "blocked" ? formatStall(segStallMs(seg.id, values)) : "—"],
     ]
   }
 
@@ -184,6 +192,11 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose }:
             <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
           ))}
         </dl>
+        {root && (
+          <button className="goto-root" onClick={() => { const r = root; onClose(); onGo(r) }}>
+            원인: {root.label} →
+          </button>
+        )}
       </div>
     </div>
   )
