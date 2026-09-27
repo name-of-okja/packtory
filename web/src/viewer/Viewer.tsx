@@ -6,6 +6,7 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color"
 import type { Scene } from "../../../shared/types.ts"
+import type { LayoutMode } from "../../../shared/layout.ts"
 import { sceneBounds } from "./coords.ts"
 import { createCamera, type IsoCamera } from "./camera.ts"
 
@@ -13,11 +14,13 @@ export type ViewerCtx = { bscene: BScene; cam: IsoCamera; engine: Engine }
 
 type Props = {
   scene: Scene
+  /** 바뀌면 엔진째 다시 짓는다 — 모드 전환은 전부 버리고 새로 그린다 (스펙 6장) */
+  mode: LayoutMode
   /** Babylon 씬이 준비되면 한 번 불린다. 반환한 정리 함수는 언마운트 때 실행된다 */
   onReady: (ctx: ViewerCtx) => (() => void) | void
 }
 
-export default function Viewer({ scene, onReady }: Props) {
+export default function Viewer({ scene, mode, onReady }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // onReady 를 ref 에 담는다. 의존성에 넣으면 값이 갱신될 때마다
   // 엔진이 통째로 재생성된다 — 3D 씬은 React 렌더 주기와 무관해야 한다.
@@ -38,7 +41,7 @@ export default function Viewer({ scene, onReady }: Props) {
     const sun = new DirectionalLight("sun", new Vector3(-1, -2, -1), bscene)
     sun.intensity = 0.6
 
-    const cam = createCamera(bscene, canvas, sceneBounds(scene))
+    const cam = createCamera(bscene, canvas, sceneBounds(scene, mode))
     const cleanup = onReadyRef.current({ bscene, cam, engine })
 
     engine.runRenderLoop(() => bscene.render())
@@ -52,7 +55,7 @@ export default function Viewer({ scene, onReady }: Props) {
       bscene.dispose()
       engine.dispose()
     }
-  }, [scene])
+  }, [scene, mode])
 
   return <canvas ref={canvasRef} className="viewer" />
 }

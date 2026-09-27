@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { Vector3 } from "@babylonjs/core/Maths/math.vector"
 import type { Scene, TagValue } from "../../shared/types.ts"
-import { equipmentHeight, floorElevation } from "../../shared/types.ts"
+import { equipmentHeight } from "../../shared/types.ts"
+import type { LayoutMode } from "../../shared/layout.ts"
 import { segState, segStallMs, segWip, formatStall } from "./state.ts"
-import { toBabylon, segmentPoints, pathSampler } from "./viewer/coords.ts"
+import { worldAt, segmentPoints, pathSampler } from "./viewer/coords.ts"
 import { projectToScreen } from "./viewer/project.ts"
 import type { ViewerCtx } from "./viewer/Viewer.tsx"
 
@@ -12,10 +13,11 @@ type Item = { key: string; text: string; x: number; y: number; cls: string }
 /** 이 배율보다 멀면 라벨을 숨긴다. 멀리서는 신호등만 남는다 */
 const SHOW_BELOW = 60
 
-export default function Labels({ ctx, scene, values }: {
+export default function Labels({ ctx, scene, values, mode }: {
   ctx: ViewerCtx | null
   scene: Scene
   values: Map<string, TagValue>
+  mode: LayoutMode
 }) {
   const [items, setItems] = useState<Item[]>([])
 
@@ -32,13 +34,12 @@ export default function Labels({ ctx, scene, values }: {
       for (const e of scene.equipment) {
         const sec = scene.sections.find((s) => s.id === e.section)
         if (!sec) continue
-        const top = floorElevation(scene, sec.floor) + equipmentHeight(e) + 0.4
-        const p = projectToScreen(bscene, toBabylon(e.pos[0], e.pos[1], top))
+        const p = projectToScreen(bscene, worldAt(scene, sec.floor, e.pos[0], e.pos[1], equipmentHeight(e) + 0.4, mode))
         if (p.visible) out.push({ key: `eq:${e.id}`, text: e.label, x: p.x, y: p.y, cls: "lbl-eq" })
       }
 
       for (const seg of scene.segments) {
-        const pts = segmentPoints(scene, seg)
+        const pts = segmentPoints(scene, seg, mode)
         // pts[Math.floor(pts.length / 2)] 는 중점이 아니다 — via 없는 2점
         // 직선 구간은 length=2, floor(1)=1 로 끝점을 고른다. 끝점은 신호등이
         // 서 있는 자리라 라벨이 바로 옆 설비 라벨과 겹친다. 호 길이 기준
@@ -72,7 +73,7 @@ export default function Labels({ ctx, scene, values }: {
       recompute()
     })
     return () => { bscene.onAfterRenderObservable.remove(obs) }
-  }, [ctx, scene, values])
+  }, [ctx, scene, values, mode])
 
   return (
     <div className="labels" aria-hidden="true">

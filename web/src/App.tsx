@@ -14,12 +14,15 @@ import { attachPicking } from "./viewer/pick.ts"
 import { pathSampler, segmentPoints } from "./viewer/coords.ts"
 import Labels from "./Labels.tsx"
 import type { Segment } from "../../shared/types.ts"
+import type { LayoutMode } from "../../shared/layout.ts"
 
 export default function App() {
   const { data, error } = useScene()
   const { values, connected } = useValues()
   const [selection, setSelection] = useState<Selection>(null)
   const [ctx, setCtx] = useState<ViewerCtx | null>(null)
+  // setter 는 배치 전환 버튼이 쓴다 (Task 6)
+  const [mode] = useState<LayoutMode>("stack")
   const camRef = useRef<IsoCamera | null>(null)
   const flowRef = useRef<Flow | null>(null)
   const andonRef = useRef<Andons | null>(null)
@@ -33,7 +36,7 @@ export default function App() {
   if (!data) return <p style={{ padding: 16 }}>씬 읽는 중…</p>
 
   const goTo = (seg: Segment) => {
-    const pts = segmentPoints(data.scene, seg)
+    const pts = segmentPoints(data.scene, seg, mode)
     // 구간 한가운데로 간다. 끝점으로 가면 긴 구간이 화면 가장자리에 걸린다.
     // pts[Math.floor(pts.length / 2)] 는 중점이 아니다 — via 없는 2점 직선
     // 구간은 length=2, floor(1)=1 로 끝점(pts[1])을 고른다. 호 길이 기준으로
@@ -49,12 +52,13 @@ export default function App() {
       <div className="viewer-wrap">
         <Viewer
           scene={data.scene}
+          mode={mode}
           onReady={(c) => {
             const { bscene, cam } = c
             camRef.current = cam
-            const statics = buildStatic(bscene, data.scene)
-            const flow = createFlow(bscene, data.scene)
-            const andons = createAndons(bscene, data.scene, statics.equipmentById)
+            const statics = buildStatic(bscene, data.scene, mode)
+            const flow = createFlow(bscene, data.scene, mode)
+            const andons = createAndons(bscene, data.scene, statics.equipmentById, mode)
             // 씬이 늦게 준비되면(HTTP 가 WS 보다 늦게 오면) 이 시점에 이미
             // 최신 값이 와 있을 수 있다. 허브는 변경분만 푸시하므로(cache.ts)
             // 라인이 멈춰 있으면 다음 값이 영영 안 온다 — 여기서 한 번 먹여
@@ -72,7 +76,7 @@ export default function App() {
             }
           }}
         />
-        <Labels ctx={ctx} scene={data.scene} values={values} />
+        <Labels ctx={ctx} scene={data.scene} values={values} mode={mode} />
         <div className="viewer-controls">
           <button title="왼쪽으로 회전" onClick={() => camRef.current?.rotate(-1)}>⟲</button>
           <button title="오른쪽으로 회전" onClick={() => camRef.current?.rotate(1)}>⟳</button>

@@ -9,6 +9,7 @@ import { Matrix } from "@babylonjs/core/Maths/math.vector"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene, SegState, TagValue } from "../../../shared/types.ts"
 import { segState, segWip } from "../state.ts"
+import type { LayoutMode } from "../../../shared/layout.ts"
 import { pathSampler, segmentPoints } from "./coords.ts"
 
 /** 눈에 보이는 이동 속도 (미터/초). 구간 길이와 무관하게 같아 보이게 한다 */
@@ -30,7 +31,7 @@ export type Flow = {
   dispose(): void
 }
 
-export function createFlow(bscene: BScene, scene: Scene): Flow {
+export function createFlow(bscene: BScene, scene: Scene, mode: LayoutMode): Flow {
   const mat = new StandardMaterial("item", bscene)
   mat.diffuseColor = new Color3(0.82, 0.86, 0.92)
   mat.specularColor = Color3.Black()
@@ -47,7 +48,7 @@ export function createFlow(bscene: BScene, scene: Scene): Flow {
   const flows = new Map<string, SegFlow>()
   for (const seg of scene.segments) {
     flows.set(seg.id, {
-      sampler: pathSampler(segmentPoints(scene, seg)),
+      sampler: pathSampler(segmentPoints(scene, seg, mode)),
       capacity: seg.capacity ?? 20,
       phase: 0,
       count: 0,

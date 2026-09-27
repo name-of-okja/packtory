@@ -6,8 +6,9 @@ import { Color3 } from "@babylonjs/core/Maths/math.color"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene } from "../../../shared/types.ts"
-import { equipmentHeight, equipmentShape, floorElevation } from "../../../shared/types.ts"
-import { segmentPoints, toBabylon } from "./coords.ts"
+import { equipmentHeight, equipmentShape } from "../../../shared/types.ts"
+import type { LayoutMode } from "../../../shared/layout.ts"
+import { segmentPoints, worldAt } from "./coords.ts"
 
 export type MeshKind = "section" | "equipment" | "segment" | "andon"
 export type MeshMeta = { kind: MeshKind; id: string }
@@ -20,7 +21,7 @@ export type StaticMeshes = {
 /** 바닥판 두께 */
 const SLAB = 0.1
 
-export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
+export function buildStatic(bscene: BScene, scene: Scene, mode: LayoutMode): StaticMeshes {
   const created: AbstractMesh[] = []
   const equipmentById = new Map<string, AbstractMesh>()
 
@@ -34,9 +35,8 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
 
   for (const sec of scene.sections) {
     const [x, y, w, h] = sec.rect
-    const elev = floorElevation(scene, sec.floor)
     const slab = CreateBox(`sec:${sec.id}`, { width: w, height: SLAB, depth: h }, bscene)
-    slab.position = toBabylon(x + w / 2, y + h / 2, elev - SLAB / 2)
+    slab.position = worldAt(scene, sec.floor, x + w / 2, y + h / 2, -SLAB / 2, mode)
     slab.material = slabMat
     slab.metadata = { kind: "section", id: sec.id } satisfies MeshMeta
     created.push(slab)
@@ -50,7 +50,6 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
   for (const e of scene.equipment) {
     const sec = scene.sections.find((s) => s.id === e.section)
     if (!sec) continue
-    const elev = floorElevation(scene, sec.floor)
     const ht = equipmentHeight(e)
     const [w, d] = e.size
 
@@ -59,7 +58,7 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
       : CreateBox(`eq:${e.id}`, { width: w, height: ht, depth: d }, bscene)
 
     // Babylon 의 상자·원통은 원점이 중심이므로 높이의 절반만큼 올린다
-    mesh.position = toBabylon(e.pos[0], e.pos[1], elev + ht / 2)
+    mesh.position = worldAt(scene, sec.floor, e.pos[0], e.pos[1], ht / 2, mode)
     mesh.material = eqMat
     mesh.metadata = { kind: "equipment", id: e.id } satisfies MeshMeta
     created.push(mesh)
@@ -74,7 +73,7 @@ export function buildStatic(bscene: BScene, scene: Scene): StaticMeshes {
   beltMat.specularColor = Color3.Black()
 
   for (const seg of scene.segments) {
-    const pts = segmentPoints(scene, seg)
+    const pts = segmentPoints(scene, seg, mode)
     // 폴리라인을 튜브로 만든다. 꺾인 구간도 한 메시로 처리된다.
     const tube = CreateTube(
       `seg:${seg.id}`,

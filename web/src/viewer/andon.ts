@@ -12,7 +12,8 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh"
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh"
 import type { Scene as BScene } from "@babylonjs/core/scene"
 import type { Scene, SegState, TagValue } from "../../../shared/types.ts"
-import { equipmentHeight, floorElevation } from "../../../shared/types.ts"
+import { equipmentHeight } from "../../../shared/types.ts"
+import { floorOrigin, type LayoutMode } from "../../../shared/layout.ts"
 import { segState } from "../state.ts"
 import { segmentPoints } from "./coords.ts"
 import type { MeshMeta } from "./build.ts"
@@ -56,6 +57,7 @@ export function createAndons(
   bscene: BScene,
   scene: Scene,
   equipmentById: Map<string, AbstractMesh>,
+  mode: LayoutMode,
 ): Andons {
   const poleMat = new StandardMaterial("pole", bscene)
   poleMat.diffuseColor = new Color3(0.18, 0.20, 0.24)
@@ -68,7 +70,7 @@ export function createAndons(
   const created: Mesh[] = []
 
   for (const seg of scene.segments) {
-    const pts = segmentPoints(scene, seg)
+    const pts = segmentPoints(scene, seg, mode)
     const end = pts[pts.length - 1]
 
     // 기둥은 구간이 실제로 서는 층(도착 층)의 설비보다 높아야 가려도 보인다.
@@ -77,7 +79,7 @@ export function createAndons(
     // "inbound" 는 1F 인데 to.floor 는 2F). 그 기준을 쓰면 기둥이 출발 층
     // 높이로 서서 램프가 도착 층 벨트보다 한참 아래(허공)에 뜬다. 구간이
     // 실제로 끝나는 도착 층(seg.to.floor)을 직접 기준으로 삼는다.
-    const base = floorElevation(scene, seg.to.floor)
+    const base = floorOrigin(scene, seg.to.floor, mode).elev
     const tallest = scene.equipment
       .filter((e) => {
         const s = scene.sections.find((sec) => sec.id === e.section)
