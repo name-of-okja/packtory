@@ -7,7 +7,8 @@
     "start": "tsx src/index.ts",
     "serve": "WEB_DIR=../web/dist tsx src/index.ts",
     "test": "node --test --import tsx ./test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gen:large": "tsx ../tools/gen-scene.ts --seed 1 > ../scene.large.json"
   },
   "dependencies": {
     "ws": "^8.18.0"
