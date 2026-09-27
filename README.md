@@ -60,6 +60,12 @@ Babylon 셰이더 폴백 청크(`default.vertex-*`, `default.fragment-*`,
 `kernelBlur*`, `glowMap*` 등)는 위 수치에 **안 들어간다** — 별도 청크로
 빌드되어 필요할 때만 로드된다.
 
+## 성능 (대형 씬 전체보기)
+
+목표: `scene.large.json` 전체보기 30fps 이상 (내장 GPU 노트북).
+측정: 2026-09-27, 내장 GPU — **적층 60fps** (60 에서 멈춰 수직 동기화 상한으로
+보인다). 계단 배치는 아직 재지 않았다.
+
 ## 테스트
 
 ```bash
