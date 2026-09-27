@@ -79,3 +79,8 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .lbl-seg  { font-size: 11px; color: #8b94a3; }
 .lbl-over { font-size: 13px; color: #e6e8eb; font-weight: 600; }
 .lbl-stall{ font-size: 13px; color: #ff8a8a; font-weight: 600; }
+
+.fps {
+  position: absolute; left: 12px; bottom: 12px; padding: 2px 8px; border-radius: 4px;
+  background: #171b22; color: #aeb6c2; font: 12px ui-monospace, monospace;
+}

@@ -35,10 +35,22 @@ export function createCamera(
 ): IsoCamera {
   const center = bounds.min.add(bounds.max).scale(0.5)
   const span = bounds.max.subtract(bounds.min)
-  const fit = Math.max(span.x, span.z, span.y * 2) * 0.75
+  // 전체보기 배율(화면 세로에 담기는 미터). 바닥 상자를 이 시점으로 투영했을 때
+  // 화면 세로 폭은 (span.x + span.z)·cos45°·sin35.26° + span.y·cos35.26°, 가로 폭은
+  // (span.x + span.z)·cos45° 다. 둘 다 담기게 잡고 20% 여백을 둔다. 예전 어림식
+  // (max(span) × 0.75)은 층을 높이 쌓은 대형 씬 적층에서 위아래가, 옆으로 늘어놓은
+  // 계단 배치에서 양 끝 층이 잘렸다 (실측). 화면 비율은 그때그때 잰다 — 창 크기가
+  // 바뀐 뒤 ⌂ 를 누르면 새 비율로 맞아야 한다.
+  const fit = () => {
+    const floor = span.x + span.z
+    const tall = floor * 0.408 + span.y * 0.816
+    const wide = floor * 0.707
+    const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1)
+    return Math.max(tall, wide / aspect) * 1.2
+  }
 
   let alphaIdx = 0
-  let zoom = fit
+  let zoom = fit()
   let moved = false
 
   const camera = new ArcRotateCamera("iso", ALPHAS[0], BETA, 200, center, scene)
@@ -86,7 +98,7 @@ export function createCamera(
   const onUp = () => { drag = null }
   const onWheel = (e: WheelEvent) => {
     e.preventDefault()
-    zoom = Math.min(Math.max(zoom * (e.deltaY > 0 ? 1.15 : 1 / 1.15), 4), fit * 4)
+    zoom = Math.min(Math.max(zoom * (e.deltaY > 0 ? 1.15 : 1 / 1.15), 4), fit() * 4)
     applyZoom()
   }
   const onResize = () => applyZoom()
@@ -109,7 +121,15 @@ export function createCamera(
   let animAlpha: { from: number; to: number; t0: number; dur: number } | null = null
   let animTarget: { from: Vector3; to: Vector3; zoomFrom: number; zoomTo: number; t0: number; dur: number } | null = null
 
+  // 첫 프레임에서 전체보기 배율을 다시 잰다. 카메라를 만드는 순간은 레이아웃이
+  // 자리 잡기 전이라 캔버스 비율이 첫 프레임과 다를 수 있다.
+  let fitted = false
   const tick = () => {
+    if (!fitted) {
+      fitted = true
+      zoom = fit()
+      applyZoom()
+    }
     if (animAlpha) {
       const k = Math.min((performance.now() - animAlpha.t0) / animAlpha.dur, 1)
       camera.alpha = animAlpha.from + (animAlpha.to - animAlpha.from) * ease(k)
@@ -147,7 +167,7 @@ export function createCamera(
       // 예전엔 zoom 을 즉시 바꾸고 target 만 보간해 2단으로 움직였다.
       animTarget = {
         from: camera.target.clone(), to: center,
-        zoomFrom: zoom, zoomTo: fit,
+        zoomFrom: zoom, zoomTo: fit(),
         t0: performance.now(), dur: 400,
       }
     },
