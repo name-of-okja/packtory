@@ -159,3 +159,51 @@ test("기본값 헬퍼", () => {
   assert.equal(equipmentHeight(s.equipment[0]), 2)
   assert.equal(equipmentShape(s.equipment[0]), "box")
 })
+
+test("규칙9: next 가 없는 구간을 가리키면 에러", () => {
+  const s = base()
+  s.segments[0].next = ["ghost"]
+  assert.match(validateScene(s).errors.join("\n"), /없는 구간 ghost/)
+})
+
+test("규칙10: next 가 자기 자신이면 에러", () => {
+  const s = base()
+  s.segments[0].next = ["sg1"]
+  assert.match(validateScene(s).errors.join("\n"), /자기 자신/)
+})
+
+/** base() 에 sg2 를 더해 sg1 → sg2 로 잇는다. sg2 의 시작은 sg1 의 끝 (9, 5) */
+function linked(): Scene {
+  const s = base()
+  s.segments.push({ id: "sg2", label: "S2", section: "a",
+    from: { floor: "1F", x: 9, y: 5 }, to: { floor: "1F", x: 9, y: 9 } })
+  s.segments[0].next = ["sg2"]
+  return s
+}
+
+test("규칙11: 순환이면 에러이고, 걸린 구간을 나열한다", () => {
+  const s = linked()
+  s.segments[1].next = ["sg1"]
+  assert.match(validateScene(s).errors.join("\n"), /순환.*sg1, sg2/)
+})
+
+test("규칙12: 이어진 두 구간의 끝점이 1m 넘게 떨어지면 경고이지 에러가 아니다", () => {
+  const s = linked()
+  s.segments[1].from = { floor: "1F", x: 9, y: 7 } // sg1 의 끝 (9, 5) 에서 2m
+  const { errors, warnings } = validateScene(s)
+  assert.deepEqual(errors, [])
+  assert.match(warnings.join("\n"), /sg1 → sg2: 끝점이 떨어져/)
+})
+
+test("규칙12: 1m 안쪽이면 경고가 없다", () => {
+  const s = linked()
+  s.segments[1].from = { floor: "1F", x: 9, y: 5.5 }
+  assert.deepEqual(validateScene(s).warnings, [])
+})
+
+test("실제 씬 둘 다 경고 없이 통과한다", () => {
+  for (const f of ["../../scene.json", "../../scene.large.json"]) {
+    const { errors, warnings } = validateScene(loadScene(new URL(f, import.meta.url).pathname))
+    assert.deepEqual([errors, warnings], [[], []], f)
+  }
+})

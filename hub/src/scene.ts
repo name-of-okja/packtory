@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import type { Scene, Section } from "../../shared/types.ts"
 import { equipmentHeight, floorElevation } from "../../shared/types.ts"
+import { downstream, topoOrder } from "../../shared/graph.ts"
 
 type Rect = [number, number, number, number]
 
@@ -107,6 +108,26 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
     if (above && top > floorElevation(s, above.id))
       warnings.push(`장비 ${e.id} 가 위층 ${above.id} 바닥을 뚫는다 (윗면 ${top}m > ${floorElevation(s, above.id)}m)`)
   }
+
+  // 규칙9·10·12: 연결(next). 연결은 스키마 v4 부터 next 가 유일한 출처라, 잘못
+  // 적으면 모의 데이터가 엉뚱하게 흐르고 원인 판정이 엉뚱한 곳을 짚는다.
+  const segById = new Map(s.segments.map((g) => [g.id, g]))
+  for (const g of s.segments) {
+    for (const n of g.next ?? []) {
+      const h = segById.get(n)
+      if (n === g.id) errors.push(`구간 ${g.id}: next 가 자기 자신을 가리킨다`)
+      else if (!h) errors.push(`구간 ${g.id}: next 가 없는 구간 ${n} 을 가리킨다`)
+      // 연결은 되지만 선이 끊겨 보인다 — 막지는 않는다. 설비를 사이에 두고 1m
+      // 안쪽으로 떨어진 정도는 그리는 사람의 어림으로 본다.
+      else if (h.from.floor !== g.to.floor || Math.hypot(h.from.x - g.to.x, h.from.y - g.to.y) > 1)
+        warnings.push(`구간 ${g.id} → ${n}: 끝점이 떨어져 있다 — 화면에서 선이 끊겨 보인다`)
+    }
+  }
+
+  // 규칙11: 순환. 모의 데이터가 제자리를 도는 물건을 만들고 원인 판정이 끝나지
+  // 않는다. 어디를 고칠지 알 수 있게 걸린 구간을 나열한다.
+  const topo = topoOrder(downstream(s))
+  if ("cycle" in topo) errors.push(`구간 연결에 순환이 있다 (순환과 그 하류): ${topo.cycle.join(", ")}`)
 
   // 규칙6: 미참조 카메라 (경고)
   const used = new Set(s.sections.flatMap((x) => x.cameras))
