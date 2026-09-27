@@ -230,3 +230,11 @@ test("v3 씬을 거절할 때 next 를 적으라고 알려준다", () => {
     /next/,
   )
 })
+
+test("자기 참조는 규칙10 하나로만 보고한다 — 순환으로 한 번 더 세지 않는다", () => {
+  const s = base()
+  s.segments[0].next = ["sg1"]
+  const errors = validateScene(s).errors
+  assert.equal(errors.length, 1, errors.join("\n"))
+  assert.match(errors[0], /자기 자신/)
+})

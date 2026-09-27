@@ -121,8 +121,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const scene = loadScene(scenePath)
   // 사건 순서의 시드. 공장 모양의 시드(tools/gen-scene.ts)와 별개다 — 같은 공장의
   // 다른 하루를 재생한다. 정수가 아니면 조용히 다른 각본이 돌지 않게 거절한다.
-  const seed = Number(process.env.MOCK_SEED ?? 1)
-  if (!Number.isInteger(seed)) throw new Error(`MOCK_SEED 는 정수여야 한다 (받음: ${process.env.MOCK_SEED})`)
+  // 빈 값("MOCK_SEED=")은 Number("") = 0 이라 정수 검사를 통과해 버린다 — 글자로 본다
+  const raw = process.env.MOCK_SEED ?? "1"
+  if (!/^-?\d+$/.test(raw.trim())) throw new Error(`MOCK_SEED 는 정수여야 한다 (받음: "${raw}")`)
+  const seed = Number(raw)
   const hub = await startHub({
     scenePath,
     port: Number(process.env.PORT ?? 8080),

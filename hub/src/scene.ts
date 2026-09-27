@@ -146,7 +146,9 @@ export function validateScene(s: Scene): { errors: string[]; warnings: string[] 
 
   // 규칙11: 순환. 모의 데이터가 제자리를 도는 물건을 만들고 원인 판정이 끝나지
   // 않는다. 어디를 고칠지 알 수 있게 걸린 구간을 나열한다.
-  const topo = topoOrder(downstream(s))
+  // 자기 참조는 규칙10 이 이미 말했다 — 빼고 봐야 같은 실수를 두 번 세지 않는다
+  const down = new Map([...downstream(s)].map(([id, ds]) => [id, ds.filter((d) => d !== id)]))
+  const topo = topoOrder(down)
   if ("cycle" in topo) errors.push(`구간 연결에 순환이 있다 (순환과 그 하류): ${topo.cycle.join(", ")}`)
 
   // 규칙6: 미참조 카메라 (경고)

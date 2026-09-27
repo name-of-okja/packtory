@@ -67,6 +67,14 @@ export default function Modal({ scene, values, go2rtcBase, selection, onClose, o
     return () => { prevFocusRef.current?.focus() }
   }, [selection?.kind, selection?.id])
 
+  // "원인 →" 버튼에 초점이 있는 채로 구간이 풀려 버튼이 사라지면 초점이 body 로
+  // 떨어지고, 다음 Tab 이 트랩을 벗어나 배경으로 간다. 모달로 되돌린다.
+  const hasRoot = !!selection && selection.kind === "segment" && segState(selection.id, values) === "blocked"
+  useEffect(() => {
+    if (!selection || hasRoot) return
+    if (!dialogRef.current?.contains(document.activeElement)) dialogRef.current?.focus()
+  }, [hasRoot, selection])
+
   if (!selection) return null
 
   // 대상이 무엇이든 카메라는 언제나 그 대상이 속한 섹션에서 온다

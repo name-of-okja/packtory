@@ -27,6 +27,9 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
     if (!ctx) return
     const { bscene } = ctx
 
+    // 영향 라벨이 원인 구간의 이름을 찾는다. 구간마다 전체를 훑지 않게 한 번만 만든다
+    const byId = new Map(scene.segments.map((g) => [g.id, g]))
+
     const recompute = () => {
       // 멀리서는 원인 구간 라벨과 구역 배지만, 가까이서는 화면 안의 모든 라벨.
       // 대형 씬은 전체보기에서 구간 500 개다 — 전부 띄우면 글자 더미에 빨강이 묻힌다.
@@ -66,7 +69,7 @@ export default function Labels({ ctx, scene, values, mode, onSection }: {
           out.push({ key: `st:${seg.id}`, text: formatStall(segStallMs(seg.id, values)), x: p.x, y: p.y - 32, cls: "lbl-stall" })
         if (st === "blocked") {
           // 무엇을 기다리는지 말해 준다. 원인이 없는 영향(원인 없는 정체)은 시간만
-          const root = scene.segments.find((g) => g.id === segRoot(seg.id, values))
+          const root = byId.get(segRoot(seg.id, values))
           const why = root ? ` · ${root.label} 때문에 대기` : ""
           out.push({ key: `st:${seg.id}`, text: `${formatStall(segStallMs(seg.id, values))}${why}`, x: p.x, y: p.y - 32, cls: "lbl-wait" })
         }
