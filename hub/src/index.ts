@@ -112,10 +112,14 @@ export async function startHub(opts: HubOptions) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const scenePath = process.env.SCENE ?? new URL("../../scene.json", import.meta.url).pathname
   const scene = loadScene(scenePath)
+  // 사건 순서의 시드. 공장 모양의 시드(tools/gen-scene.ts)와 별개다 — 같은 공장의
+  // 다른 하루를 재생한다. 정수가 아니면 조용히 다른 각본이 돌지 않게 거절한다.
+  const seed = Number(process.env.MOCK_SEED ?? 1)
+  if (!Number.isInteger(seed)) throw new Error(`MOCK_SEED 는 정수여야 한다 (받음: ${process.env.MOCK_SEED})`)
   const hub = await startHub({
     scenePath,
     port: Number(process.env.PORT ?? 8080),
-    adapter: new MockAdapter(scene),
+    adapter: new MockAdapter(scene, { seed }),
     go2rtcBase: process.env.GO2RTC_BASE ?? "http://127.0.0.1:1984",
     webDir: process.env.WEB_DIR,
   })
