@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react"
 import type { Scene, Segment, TagValue } from "../../shared/types.ts"
 import { formatStall, segStallMs, segState } from "./state.ts"
 
+/** 칩은 이만큼만 세운다. 막힘 하나가 상류로 번지면 빨강이 여럿 된다 — 전부
+ *  세우면 막대가 뷰어를 잡아먹는다. 오래 멈춘 순이라 대개 원인이 앞에 온다 */
+const MAX_CHIPS = 5
+
 type Props = {
   scene: Scene
   values: Map<string, TagValue>
@@ -55,7 +59,7 @@ export default function AlertBar({ scene, values, onGo }: Props) {
         <div className="alert-bar ok">정상 가동</div>
       ) : (
         <div className="alert-bar">
-          {stalled.map(({ seg, ms }) => {
+          {stalled.slice(0, MAX_CHIPS).map(({ seg, ms }) => {
             const section = scene.sections.find((x) => x.id === seg.section)
             return (
               <button key={seg.id} className="chip" onClick={() => onGo(seg)}>
@@ -63,6 +67,9 @@ export default function AlertBar({ scene, values, onGo }: Props) {
               </button>
             )
           })}
+          {stalled.length > MAX_CHIPS && (
+            <span className="chip-more">외 {stalled.length - MAX_CHIPS}건</span>
+          )}
         </div>
       )}
     </>

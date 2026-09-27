@@ -80,6 +80,17 @@ body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; backgrou
 .lbl-over { font-size: 13px; color: #e6e8eb; font-weight: 600; }
 .lbl-stall{ font-size: 13px; color: #ff8a8a; font-weight: 600; }
 
+/* ── 구역 배지 (멀리서 보기) ─────────────────────────
+   라벨 층과 달리 누를 수 있다. 위치는 라벨과 같은 방식(transform)으로 옮긴다. */
+.badges { position: absolute; inset: 0; pointer-events: none; }
+.badge {
+  position: absolute; left: 0; top: 0; pointer-events: auto; white-space: nowrap;
+  padding: 3px 10px; border: 1px solid #2f6b47; border-radius: 999px;
+  background: #16301f; color: #9fe0b4; font: 12px/1.4 inherit; cursor: pointer;
+}
+.badge.stalled { border-color: #d24b4b; background: #3a1d1d; color: #ffb4b4; font-weight: 600; }
+.chip-more { color: #ffb4b4; font-size: 13px; }
+
 .fps {
   position: absolute; left: 12px; bottom: 12px; padding: 2px 8px; border-radius: 4px;
   background: #171b22; color: #aeb6c2; font: 12px ui-monospace, monospace;

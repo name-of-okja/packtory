@@ -16,6 +16,7 @@ import { equipmentHeight } from "../../../shared/types.ts"
 import { floorOrigin, type LayoutMode } from "../../../shared/layout.ts"
 import { segState } from "../state.ts"
 import { segmentPoints } from "./coords.ts"
+import { SHOW_BELOW, zoomOf } from "./camera.ts"
 import type { MeshMeta } from "./build.ts"
 
 /**
@@ -46,7 +47,7 @@ function isWarning(scene: Scene, eqId: string, values: Map<string, TagValue>): b
   })
 }
 
-type One = { lamp: Mesh; mat: StandardMaterial; state: SegState }
+type One = { lamp: Mesh; pole: Mesh; mat: StandardMaterial; state: SegState }
 
 export type Andons = {
   setValues(values: Map<string, TagValue>): void
@@ -106,12 +107,27 @@ export function createAndons(
     lamp.metadata = { kind: "andon", id: seg.id } satisfies MeshMeta
     created.push(lamp)
 
-    made.push({ lamp, mat, state: "unknown" })
+    made.push({ lamp, pole, mat, state: "unknown" })
   }
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
+  // 멀리서는 정지 신호등만 세운다. 층당 백 개 가까운 초록 기둥 사이에서 빨강
+  // 몇 개를 찾으라는 화면은 이 제품의 목적과 반대다 (스펙 6장 밀도 제어).
+  let far: boolean | null = null
+  const applyVisibility = () => {
+    for (const one of made) {
+      const show = !far || one.state === "stalled"
+      if (one.lamp.isEnabled() === show) continue
+      one.lamp.setEnabled(show)
+      one.pole.setEnabled(show)
+    }
+  }
+
   const onFrame = () => {
+    // 문턱 판정은 모션 감소 설정과 무관하다 — 줌은 사용자가 바꾼다
+    const nowFar = zoomOf(bscene) > SHOW_BELOW
+    if (nowFar !== far) { far = nowFar; applyVisibility() }
     if (reduced) return
     const t = performance.now() / 1000
     for (const one of made) {
@@ -131,6 +147,7 @@ export function createAndons(
         made[i].state = st
         made[i].mat.emissiveColor = LAMP[st].color
       }
+      applyVisibility()
 
       for (const [id, mesh] of equipmentById) {
         const want = isWarning(scene, id, values)

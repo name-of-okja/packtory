@@ -14,7 +14,19 @@ const BETA = 0.9553
 const ALPHAS = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4]
 /** 드래그가 이보다 움직였으면 클릭이 아니라 팬이다 (CSS 픽셀) */
 export const DRAG_SLOP = 4
-/** 칩을 눌러 날아갈 때의 줌. Labels 의 SHOW_BELOW(60)보다 확실히 아래여야
+/**
+ * 이 배율(화면 세로에 담기는 미터)보다 멀면 "멀리서 보기" 다. 멀리서는 정지
+ * 구간의 신호등·라벨과 구역 배지만 남긴다 (스펙 6장 밀도 제어). 라벨과
+ * 신호등이 같은 문턱을 써야 하므로 여기 하나만 둔다.
+ */
+export const SHOW_BELOW = 60
+
+/** 지금 화면 세로에 담기는 미터 */
+export function zoomOf(scene: BScene): number {
+  return (scene.activeCamera?.orthoTop ?? 0) * 2
+}
+
+/** 칩을 눌러 날아갈 때의 줌. SHOW_BELOW(60)보다 확실히 아래여야
  *  도착해서 이름과 정지 시간을 읽을 수 있다 */
 const FLY_ZOOM = 30
 
@@ -173,7 +185,7 @@ export function createCamera(
     },
     flyTo(target) {
       // 스펙은 팬+줌이다. 팬만 하면 넓게 본 상태에서 눌렀을 때 그 구간이
-      // 가운데로 오기만 하고 라벨 문턱(Labels 의 SHOW_BELOW) 위라 이름도
+      // 가운데로 오기만 하고 라벨 문턱(SHOW_BELOW) 위라 이름도
       // 정지 시간도 안 읽힌다 — 칩을 누르는 이유가 사라진다.
       // 이미 그보다 가까이 보고 있으면 물러나지 않는다.
       animTarget = {

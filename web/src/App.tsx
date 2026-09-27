@@ -121,7 +121,7 @@ export default function App() {
             }
           }}
         />
-        <Labels ctx={ctx} scene={data.scene} values={values} mode={mode} />
+        <Labels ctx={ctx} scene={data.scene} values={values} mode={mode} onSection={goSection} />
         {SHOW_FPS && <Fps engine={ctx?.engine} />}
         <div className="viewer-controls">
           <button title="왼쪽으로 회전" onClick={() => camRef.current?.rotate(-1)}>⟲</button>
