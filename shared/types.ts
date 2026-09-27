@@ -7,7 +7,8 @@ export type WsMessage =
   | { type: "snapshot"; data: TagValue[] }
   | { type: "values"; data: TagValue[] }
 
-export type SegState = "running" | "stalled" | "idle" | "unknown"
+/** blocked 는 derive 가 아니라 원인 판정(hub/src/cause.ts)만 만든다 — 하류가 막혀 기다리는 정지 */
+export type SegState = "running" | "stalled" | "blocked" | "idle" | "unknown"
 
 export type Floor = {
   id: string

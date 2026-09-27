@@ -6,6 +6,8 @@ import { loadScene } from "./scene.ts"
 import { Cache } from "./cache.ts"
 import { createFanout } from "./ws.ts"
 import { derive, type SegMemory } from "./derive.ts"
+import { withCause } from "./cause.ts"
+import { downstream, topoOrder } from "../../shared/graph.ts"
 import type { Adapter, Emit } from "./adapter.ts"
 import { MockAdapter } from "./adapters/mock.ts"
 
@@ -46,10 +48,15 @@ export async function startHub(opts: HubOptions) {
   // 값이 안 바뀌어도 돌아야 stallMs 가 올라간다 — 정지 시간은 아무 일도
   // 안 일어날 때 세는 숫자다.
   let mem = new Map<string, SegMemory>()
+  // 씬은 바뀌지 않으므로 연결과 순서는 한 번만 만든다. 순환은 loadScene 이 이미 거절했다.
+  const down = downstream(scene)
+  const topo = topoOrder(down)
+  const order = "order" in topo ? topo.order : []
+  const capacity = new Map(scene.segments.map((g) => [g.id, g.capacity ?? 20]))
   const deriveTimer = setInterval(() => {
     const { tags, next } = derive(scene.segments, cache.values(), mem, Date.now(), stallSec)
     mem = next
-    for (const t of tags) if (cache.set(t)) fanout.push(t)
+    for (const t of withCause(tags, down, order, capacity)) if (cache.set(t)) fanout.push(t)
   }, DERIVE_MS)
 
   const server = createServer(async (req, res) => {

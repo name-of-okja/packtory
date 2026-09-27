@@ -30,6 +30,9 @@ const MIN_POLE = 3
 const LAMP: Record<SegState, { color: Color3; blinkHz: number }> = {
   running: { color: new Color3(0.30, 0.85, 0.42), blinkHz: 0 },
   stalled: { color: new Color3(1.00, 0.25, 0.25), blinkHz: 1 },
+  // 영향(하류가 막혀 기다림)은 노랑, 점멸 없음. 주황은 설비 경고 발광(WARN_GLOW)이
+  // 이미 쓴다 — 섞이면 "온도 경고" 와 "막힘 영향" 이 같은 색이 된다 (스펙 2장).
+  blocked: { color: new Color3(1.00, 0.82, 0.20), blinkHz: 0 },
   idle:    { color: new Color3(0.18, 0.20, 0.24), blinkHz: 0 },
   unknown: { color: new Color3(0.90, 0.90, 0.90), blinkHz: 0.5 },
 }

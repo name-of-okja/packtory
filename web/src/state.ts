@@ -4,7 +4,7 @@ import type { SegState, TagValue } from "../../shared/types.ts"
 export type Selection = { kind: "section" | "equipment" | "segment"; id: string } | null
 
 export const STATE_LABEL: Record<SegState, string> = {
-  running: "가동", stalled: "정지", idle: "대기", unknown: "불명",
+  running: "가동", stalled: "정지", blocked: "영향", idle: "대기", unknown: "불명",
 }
 
 export function segState(id: string, values: Map<string, TagValue>): SegState {

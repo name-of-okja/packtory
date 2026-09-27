@@ -177,6 +177,13 @@ export class MockAdapter implements Adapter {
     return list.some((b) => b.id === id && t >= b.fromMs && t < b.toMs)
   }
 
+  /** 지금 막고 있는 구간들. 원인 판정을 이 정답과 대조하는 테스트용 — 판정에는 안 쓴다 */
+  blockedNow(): string[] {
+    const t = this.now()
+    const plan = this.planFor(Math.floor(t / CYCLE_MS))
+    return this.sims.filter((s) => this.isBlocked(s.seg.id, t, plan)).map((s) => s.seg.id)
+  }
+
   /** 한 틱. 테스트가 시계를 직접 돌릴 수 있도록 public. */
   tick(emit: Emit) {
     const t = this.now()
