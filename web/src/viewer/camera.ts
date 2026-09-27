@@ -119,7 +119,11 @@ export function createCamera(
   canvas.addEventListener("pointermove", onMove)
   canvas.addEventListener("pointerup", onUp)
   canvas.addEventListener("pointercancel", onUp)
-  canvas.addEventListener("wheel", onWheel, { passive: false })
+  // 휠은 캔버스가 아니라 그 부모(뷰어 영역)에서 받는다. 멀리서 보기의 구역 배지는
+  // 누를 수 있어야 해서 캔버스 위에 떠 있고 포인터를 가로챈다 — 캔버스에 붙이면
+  // 확대하려고 커서를 댄 바로 그 배지 위에서 휠이 안 먹는다.
+  const wheelTarget = canvas.parentElement ?? canvas
+  wheelTarget.addEventListener("wheel", onWheel, { passive: false })
   window.addEventListener("resize", onResize)
 
   // ── 보간 ────────────────────────────────────────────────
@@ -200,7 +204,7 @@ export function createCamera(
       canvas.removeEventListener("pointermove", onMove)
       canvas.removeEventListener("pointerup", onUp)
       canvas.removeEventListener("pointercancel", onUp)
-      canvas.removeEventListener("wheel", onWheel)
+      wheelTarget.removeEventListener("wheel", onWheel)
       window.removeEventListener("resize", onResize)
       scene.onBeforeRenderObservable.removeCallback(tick)
     },
