@@ -26,7 +26,7 @@ test("첫 관측은 기준선만 잡고 running 으로 시작한다", () => {
   assert.equal(pick(tags, "state").v, "running")
   assert.equal(pick(tags, "wip").v, 10)
   assert.equal(pick(tags, "stallMs").v, 0)
-  assert.deepEqual(next.get("c1"), { lastIn: 100, lastOut: 90, lastOutChangeTs: 1000 })
+  assert.deepEqual(next.get("c1"), { lastIn: 100, lastOut: 90, lastOutChangeTs: 1000, wipSinceTs: 1000 })
 })
 
 test("out 이 증가하면 running 을 유지하고 정지 시계를 리셋한다", () => {
@@ -118,4 +118,23 @@ test("counterMax 가 있는 구간에서 out 이 in 보다 한 칸 앞서면(raw
   const { tags } = derive([seg], vals(100, 101), prev, 1_000 + 60_000, STALL)
   assert.equal(pick(tags, "wip").v, 0)
   assert.equal(pick(tags, "state").v, "idle")
+})
+
+test("비어서 쉬던 구간에 물건이 다시 들어온 순간은 stalled 가 아니다", () => {
+  // 0초에 비어 out 이 90 에서 멎었다(idle). 30초 뒤 물건 하나가 들어왔다.
+  // out 만 보면 30초째 정체 + wip 1 이라 빨강이지만, 그 물건은 방금 왔다.
+  const prev = new Map<string, SegMemory>([["c1", { lastIn: 90, lastOut: 90, lastOutChangeTs: 0 }]])
+  const { tags, next } = derive([SEG], vals(91, 90), prev, 30_000, STALL)
+  assert.equal(pick(tags, "state").v, "running")
+  assert.equal(next.get("c1")!.wipSinceTs, 30_000)
+  // 그 물건이 stallSec 넘게 안 나가면 그때는 막힘이다. 정지 시간은 들어찬 때부터 센다
+  const r2 = derive([SEG], vals(95, 90), next, 45_000, STALL)
+  assert.equal(pick(r2.tags, "state").v, "stalled")
+  assert.equal(pick(r2.tags, "stallMs").v, 15_000)
+})
+
+test("구간이 비면 들어찬 시각을 잊는다", () => {
+  const prev = new Map<string, SegMemory>([["c1", { lastIn: 91, lastOut: 90, lastOutChangeTs: 0, wipSinceTs: 5_000 }]])
+  const { next } = derive([SEG], vals(91, 91), prev, 8_000, STALL)
+  assert.equal(next.get("c1")!.wipSinceTs, undefined)
 })

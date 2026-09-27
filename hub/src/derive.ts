@@ -4,6 +4,8 @@ export type SegMemory = {
   lastIn: number
   lastOut: number
   lastOutChangeTs: number
+  /** 구간에 물건이 들어차기 시작한 시각. 비어 있으면 없다 */
+  wipSinceTs?: number
 }
 
 export type ValueMap = Map<string, { v: Value; q: Quality }>
@@ -77,8 +79,9 @@ export function derive(
     // 첫 관측 (또는 허브 재기동 직후): 기준선만 잡는다.
     // stallSec 동안 running 으로 보이지만 스스로 복구되므로 디스크에 남기지 않는다.
     if (!mem) {
-      next.set(seg.id, { lastIn: inN, lastOut: outN, lastOutChangeTs: now })
-      tags.push(...emit(seg.id, wipOf(seg, inN, outN), "running", 0, now, "good"))
+      const w0 = wipOf(seg, inN, outN)
+      next.set(seg.id, { lastIn: inN, lastOut: outN, lastOutChangeTs: now, ...(w0 > 0 && { wipSinceTs: now }) })
+      tags.push(...emit(seg.id, w0, "running", 0, now, "good"))
       continue
     }
 
@@ -92,10 +95,19 @@ export function derive(
     }
 
     const lastOutChangeTs = dOut > 0 ? now : mem.lastOutChangeTs
-    next.set(seg.id, { lastIn: inN, lastOut: outN, lastOutChangeTs })
-
     const wip = wipOf(seg, inN, outN)
-    const since = now - lastOutChangeTs
+    // 직전에도 차 있었으면 그때부터, 방금 차기 시작했으면 지금부터. 기록이 없는
+    // 옛 기억(허브가 이 필드 전에 남긴 것)은 out 이 멈춘 시각으로 본다 — 예전 판정과 같다.
+    const wasFull = wipOf(seg, mem.lastIn, mem.lastOut) > 0
+    const wipSinceTs = wip > 0 ? (wasFull ? mem.wipSinceTs ?? mem.lastOutChangeTs : now) : undefined
+    next.set(seg.id, { lastIn: inN, lastOut: outN, lastOutChangeTs, ...(wipSinceTs !== undefined && { wipSinceTs }) })
+
+    // 정지 시간은 "out 이 멈춘 뒤" 와 "물건이 들어차기 시작한 뒤" 중 늦은 쪽부터
+    // 센다. out 만 보면, 비어서 쉬던(idle) 구간에 물건 하나가 다시 들어오는 순간 —
+    // out 은 이미 stallSec 넘게 그대로이고 wip 는 1 — 그 물건이 구간을 다 지날
+    // 때까지 빨강이 뜬다. 사고가 아닌데 빨강이 뜨면 아무도 화면을 안 본다.
+    // 막힌 구간은 물건이 계속 들어차 있으므로 그대로 잡힌다.
+    const since = now - Math.max(lastOutChangeTs, wipSinceTs ?? lastOutChangeTs)
 
     let state: SegState
     let stallMs: number
