@@ -95,3 +95,19 @@ test("기본 씬이 목록에 없거나 id 가 겹치면 startHub 가 거절한�
   await assert.rejects(startHub({ scenes: [a], defaultScene: "large", port: 0, go2rtcBase: "x" }), /기본 씬 large/)
   await assert.rejects(startHub({ scenes: [a, { ...a }], defaultScene: "small", port: 0, go2rtcBase: "x" }), /겹친다/)
 })
+
+test("URL 로 못 읽는 요청은 400 이고 허브는 살아 있다 — 요청 하나로 프로세스가 죽으면 안 된다", async () => {
+  const { hub, base } = await two()
+  try {
+    const { connect } = await import("node:net")
+    const [host, port] = base.split(":")
+    // HTTP 파서는 받지만 new URL 은 던지는 절대형 대상
+    const status = await new Promise<string>((resolve, reject) => {
+      const sock = connect(Number(port), host, () => sock.write("GET http://[ HTTP/1.1\r\nHost: x\r\n\r\n"))
+      sock.once("data", (d) => { resolve(d.toString().split("\r\n")[0]); sock.destroy() })
+      sock.once("error", reject)
+    })
+    assert.match(status, / 400 /)
+    assert.equal((await fetch(`http://${base}/api/scenes`)).status, 200)
+  } finally { await hub.close() }
+})

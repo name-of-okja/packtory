@@ -98,7 +98,16 @@ export async function startHub(opts: HubOptions) {
   }
 
   const server = createServer(async (req, res) => {
-    const url = new URL(req.url ?? "/", "http://hub")
+    // new URL 은 HTTP 파서가 받아 준 절대형 대상(`GET http://[`)에도 던진다. async
+    // 핸들러라 못 잡으면 unhandled rejection 으로 프로세스가 죽는다 — 아래 정적 서빙의
+    // decodeURIComponent 와 같은 이유로 감싼다.
+    let url: URL
+    try {
+      url = new URL(req.url ?? "/", "http://hub")
+    } catch {
+      res.writeHead(400).end()
+      return
+    }
     if (url.pathname === "/api/scenes") {
       json(res, {
         default: opts.defaultScene,

@@ -40,8 +40,11 @@ export function useValues(sceneId: string | null) {
       }
 
       ws.onclose = () => {
+        // 씬을 바꾸면 옛 소켓은 새 소켓이 열린 뒤에 닫힘을 알릴 수 있다. 그때 false 를
+        // 쓰면 멀쩡히 붙어 있는데 "끊김" 배너가 남는다 — 버린 소켓은 상태를 못 건드린다
+        if (cancelled) return
         setConnected(false)
-        if (!cancelled) retry = setTimeout(connect, RECONNECT_MS)
+        retry = setTimeout(connect, RECONNECT_MS)
       }
 
       ws.onerror = () => ws?.close()
